@@ -1,0 +1,228 @@
+equipmentID,stopID,stop,observed_arrival,fix_distance_m,atStop_at_arrival,was_nextStop_at_arrival,terminal_layover,pred_60s,err_60s,pred_180s,err_180s,pred_360s,err_360s
+101,19395,Cleveland Ave at Woodland Dr Westbound,11:00:20,9.7,,True,False,,,,,,
+101,11439,Cleveland Ave at JPA,11:01:11,19.1,1,False,False,11:03:08 via minutesToNextStops,117,,,,
+101,11350,JPA at Old Lynchburg Rd Southbound,11:01:53,9.7,,False,False,11:03:48 via minutesToNextStops,115,,,,
+101,11378,JPA at Azalea Dr,11:02:48,27.9,,True,False,11:03:48 via minutesToNextStops,60,(stop not listed),,,
+101,19330,Harris Rd at Longwood Dr,11:04:10,24.8,,True,True,11:05:08 via minutesToNextStops,58,(stop not listed),,,
+101,19324,Willoughby Square Shopping,11:05:49,2.8,1,False,False,11:05:00 via nextStopETA,-49,(stop not listed),,(stop not listed),
+101,15785,5th St at Bent Creed Rd,11:07:41,17.1,,False,False,11:07:00 via nextStopETA,-41,11:04:38 via minutesToNextStops,-183,(stop not listed),
+101,19348,Harris Rd at Lodge Creek Cir,11:09:04,20.9,1,False,False,11:07:00 via nextStopETA,-124,11:07:08 via minutesToNextStops,-116,(stop not listed),
+101,19369,JPA at Porter Ave,11:10:45,10.5,,True,False,11:10:48 via minutesToNextStops,3,11:09:48 via minutesToNextStops,-57,(stop not listed),
+101,19382,Cleveland Ave at Hammond St,11:12:32,5.5,1,False,False,11:13:28 via minutesToNextStops,56,(stop not listed),,(stop not listed),
+101,18051,Cherry Ave at Shamrock Rd Eastbound,11:14:31,19.3,1,False,False,11:15:28 via minutesToNextStops,57,(stop not listed),,(stop not listed),
+101,14523,Cherry Ave at Rockcreek Rd,11:15:11,25.6,,True,False,11:17:08 via minutesToNextStops,117,(stop not listed),,(stop not listed),
+101,17028,JPA at Pinn Hall,11:21:45,27.3,1,False,False,11:20:00 via nextStopETA,-105,11:20:48 via minutesToNextStops,-57,(stop not listed),
+101,11138,W Main St at 11th St Eastbound,11:30:42,8.5,1,False,False,11:29:00 via nextStopETA,-102,11:27:00 via nextStopETA,-222,11:24:00 via nextStopETA,-402
+101,11585,Cherry Ave at Cherry Ave Shopping,11:34:46,12.2,,True,False,11:35:48 via minutesToNextStops,62,11:32:48 via minutesToNextStops,-118,11:31:48 via minutesToNextStops,-178
+101,12113,Cherry Ave at 6th St Eastbound,11:35:18,6.7,1,False,False,11:36:18 via minutesToNextStops,60,11:35:18 via minutesToNextStops,0,(stop not listed),
+101,15802,Ridge St at Elliott Ave,11:36:35,15.4,1,False,False,11:36:00 via nextStopETA,-35,(stop not listed),,(stop not listed),
+105,17333,Downtown Transit Station,10:59:12,15.6,1,False,False,,,,,,
+105,11036,Water St at Omni,11:01:40,8.5,1,False,False,11:01:38 via minutesToNextStops,-2,,,,
+105,12994,Ridge St at Dice St Southbound,11:03:01,17.0,,True,False,11:03:00 via nextStopETA,-1,11:02:58 via minutesToNextStops,-3,,
+105,12987,Ridge St at Cherry Ave,11:03:30,20.8,1,False,False,11:04:28 via minutesToNextStops,58,(stop not listed),,,
+105,19324,Willoughby Square Shopping,11:06:44,9.0,1,False,False,11:09:00 via nextStopETA,136,11:08:48 via minutesToNextStops,124,(stop not listed),
+105,20110,Bent Creek Rd at Exxon Station,11:10:11,26.0,,True,False,11:11:00 via nextStopETA,49,11:11:00 via nextStopETA,49,(stop not listed),
+105,20054,5th St Station,11:11:46,8.8,,False,False,11:12:00 via nextStopETA,14,11:11:48 via minutesToNextStops,2,11:11:48 via minutesToNextStops,2
+105,15927,Avon St at Druid Ave,11:18:21,7.7,1,False,False,11:20:18 via minutesToNextStops,117,(stop not listed),,(stop not listed),
+105,12052,Avon St at Montrose Ave,11:19:38,20.3,1,False,False,11:21:00 via nextStopETA,82,(stop not listed),,(stop not listed),
+105,12047,Avon St at Blenheim Ave,11:20:09,11.5,1,True,False,11:22:08 via minutesToNextStops,119,(stop not listed),,(stop not listed),
+105,11015,E Water St at 3rd St,11:31:38,13.5,1,False,False,11:31:00 via nextStopETA,-38,11:31:00 via nextStopETA,-38,11:31:00 via nextStopETA,-38
+107,14285,E High St at Hazel St Westbound,10:59:59,6.0,1,False,False,,,,,,
+107,13685,E High St at Grove Ave Westbound,11:01:08,10.0,1,False,False,11:02:08 via minutesToNextStops,60,,,,
+107,16475,E High St at Locust Ave,11:02:39,6.6,,True,False,11:02:00 via nextStopETA,-39,(stop not listed),,,
+107,11321,E Market St at 10th St NE,11:04:26,8.9,,True,True,11:04:00 via nextStopETA,-26,11:03:28 via minutesToNextStops,-58,,
+107,17333,Downtown Transit Station,11:05:36,12.2,,True,True,11:08:38 via minutesToNextStops,182,11:07:38 via minutesToNextStops,122,(stop not listed),
+107,11015,E Water St at 3rd St,11:15:52,14.8,,True,False,11:15:00 via nextStopETA,-52,11:15:00 via nextStopETA,-52,11:14:48 via minutesToNextStops,-64
+107,11036,Water St at Omni,11:17:33,27.6,,True,False,11:17:00 via nextStopETA,-33,11:16:28 via minutesToNextStops,-65,11:16:28 via minutesToNextStops,-65
+107,11043,Ridge McIntire at Omni,11:18:13,6.9,1,False,False,11:18:08 via minutesToNextStops,-5,11:17:08 via minutesToNextStops,-65,11:17:08 via minutesToNextStops,-65
+107,11299,E Market St at 2nd St NE,11:20:03,7.4,1,False,False,11:20:58 via minutesToNextStops,55,(stop not listed),,(stop not listed),
+107,11309,E Market St at 5th St NE,11:22:03,8.8,,True,False,11:21:00 via nextStopETA,-63,11:21:58 via minutesToNextStops,-5,(stop not listed),
+107,13692,E High St at Meade Ave,11:25:10,24.7,,True,False,11:25:08 via minutesToNextStops,-2,(stop not listed),,(stop not listed),
+107,19019,Pantops Giant,11:34:02,11.0,,False,False,11:34:00 via nextStopETA,-2,11:33:00 via nextStopETA,-62,11:30:58 via minutesToNextStops,-184
+107,19018,DMV,11:35:13,12.5,1,False,False,11:36:00 via nextStopETA,47,11:36:08 via minutesToNextStops,55,11:33:08 via minutesToNextStops,-125
+107,19002,Martha Jefferson Dr at State Farm Blvd,11:37:02,22.7,,True,True,11:36:00 via nextStopETA,-62,11:37:58 via minutesToNextStops,56,11:35:58 via minutesToNextStops,-64
+107,17230,Sentara Martha Jefferson Hospital,11:38:16,27.7,,True,True,11:41:18 via minutesToNextStops,182,11:40:18 via minutesToNextStops,122,(stop not listed),
+114,11299,E Market St at 2nd St NE,11:00:50,7.4,,False,False,11:01:48 via minutesToNextStops,58,,,,
+114,11309,E Market St at 5th St NE,11:02:05,13.7,1,False,False,11:03:00 via nextStopETA,55,,,,
+114,17333,Downtown Transit Station,11:04:32,14.8,,True,True,11:05:00 via nextStopETA,28,11:05:28 via minutesToNextStops,56,,
+114,11036,Water St at Omni,11:16:52,14.7,,True,False,11:17:48 via minutesToNextStops,56,11:17:48 via minutesToNextStops,56,11:17:48 via minutesToNextStops,56
+114,13001,Preston Ave at Booker St,11:21:06,26.9,1,False,False,11:21:00 via nextStopETA,-6,11:21:08 via minutesToNextStops,2,(stop not listed),
+114,14133,Preston Ave at Washington Park,11:21:57,2.6,1,False,False,11:21:58 via minutesToNextStops,1,11:21:58 via minutesToNextStops,1,(stop not listed),
+114,14024,Preston Ave at Madison Ave Northbound,11:22:38,20.1,,True,False,11:23:38 via minutesToNextStops,60,11:23:38 via minutesToNextStops,60,(stop not listed),
+114,19767,Barracks Rd At Meadowbrook Rd,11:25:50,7.8,1,False,False,11:26:48 via minutesToNextStops,58,(stop not listed),,(stop not listed),
+114,16680,BRSC Kroger,11:28:50,16.8,,False,False,11:28:00 via nextStopETA,-50,11:27:48 via minutesToNextStops,-62,(stop not listed),
+114,16554,Emmet St at Angus Rd,11:34:59,7.7,,False,False,11:35:00 via nextStopETA,1,11:34:58 via minutesToNextStops,-1,11:34:58 via minutesToNextStops,-1
+114,20168,Seminole Ct at 29,11:38:39,8.0,1,False,False,11:41:38 via minutesToNextStops,179,(stop not listed),,(stop not listed),
+117,11043,Ridge McIntire at Omni,10:59:25,6.9,,False,False,,,,,,
+117,11299,E Market St at 2nd St NE,11:01:02,16.9,1,False,False,11:00:58 via minutesToNextStops,-4,,,,
+117,11309,E Market St at 5th St NE,11:03:12,19.0,1,False,False,11:02:00 via nextStopETA,-72,11:03:08 via minutesToNextStops,-4,,
+117,17333,Downtown Transit Station,11:05:50,12.0,1,False,False,11:06:48 via minutesToNextStops,58,11:05:48 via minutesToNextStops,-2,(stop not listed),
+117,11015,E Water St at 3rd St,11:08:57,14.9,,True,False,11:07:00 via nextStopETA,-117,11:05:00 via nextStopETA,-237,(stop not listed),
+117,11058,W Main St at 5th St SW,11:12:21,8.9,1,False,False,11:13:00 via nextStopETA,39,11:12:18 via minutesToNextStops,-3,11:09:18 via minutesToNextStops,-183
+117,11186,W Main St at The Standard,11:13:59,10.3,1,False,False,11:14:58 via minutesToNextStops,59,11:14:58 via minutesToNextStops,59,(stop not listed),
+117,11193,JPA at UVA Hospital,11:17:37,13.3,1,False,False,11:17:00 via nextStopETA,-37,11:15:38 via minutesToNextStops,-119,(stop not listed),
+117,11155,JPA at Cabell Hall,11:20:33,14.3,1,False,False,11:20:00 via nextStopETA,-33,11:18:28 via minutesToNextStops,-125,11:17:28 via minutesToNextStops,-185
+117,10660,Emmet St at Snyder Tennis Courts,11:24:15,11.7,,False,False,11:24:00 via nextStopETA,-15,11:24:18 via minutesToNextStops,3,11:22:18 via minutesToNextStops,-117
+117,13157,BRSC at Arlington Northbound,11:28:10,6.2,1,False,False,11:27:00 via nextStopETA,-70,11:28:08 via minutesToNextStops,-2,(stop not listed),
+117,16680,BRSC Kroger,11:30:49,14.0,,True,False,11:29:00 via nextStopETA,-109,11:28:48 via minutesToNextStops,-121,(stop not listed),
+117,16554,Emmet St at Angus Rd,11:35:10,12.2,1,False,False,11:37:08 via minutesToNextStops,118,11:34:08 via minutesToNextStops,-62,11:33:08 via minutesToNextStops,-122
+117,16531,Kroger at Hydraulic Rd,11:37:43,20.8,,True,True,11:38:00 via nextStopETA,17,11:38:38 via minutesToNextStops,55,11:37:38 via minutesToNextStops,-5
+117,20134,Hillsdale Dr at Whole Foods,11:38:54,27.7,,True,False,11:38:58 via minutesToNextStops,4,11:36:58 via minutesToNextStops,-116,(stop not listed),
+118,17333,Downtown Transit Station,11:01:12,15.5,,True,True,11:05:08 via minutesToNextStops,236,,,,
+118,11015,E Water St at 3rd St,11:15:23,8.2,,True,False,11:16:00 via nextStopETA,37,11:16:00 via nextStopETA,37,11:16:18 via minutesToNextStops,55
+118,11036,Water St at Omni,11:16:48,27.6,1,False,False,11:17:00 via nextStopETA,12,11:16:48 via minutesToNextStops,0,11:16:48 via minutesToNextStops,0
+118,11299,E Market St at 2nd St NE,11:18:11,6.7,,True,False,11:19:08 via minutesToNextStops,57,(stop not listed),,(stop not listed),
+118,17379,Locust Ave at Long St,11:22:42,3.8,,True,False,11:24:38 via minutesToNextStops,116,(stop not listed),,(stop not listed),
+118,18203,Northeast Park Northbound,11:24:17,9.1,,True,False,11:27:18 via minutesToNextStops,181,(stop not listed),,(stop not listed),
+118,17173,North Ave at Glendale Rd,11:24:51,24.1,,False,False,11:27:48 via minutesToNextStops,177,(stop not listed),,(stop not listed),
+118,18300,Rio Rd at Pen Park Ln,11:30:02,19.9,,True,False,11:33:00 via nextStopETA,178,11:32:58 via minutesToNextStops,176,(stop not listed),
+118,17194,Rio Rd at John Warner Pkwy,11:31:37,23.9,1,False,False,11:35:38 via minutesToNextStops,241,11:36:38 via minutesToNextStops,301,(stop not listed),
+118,21070,Center at Belvedere,11:32:54,8.1,,False,False,11:37:00 via nextStopETA,246,(stop not listed),,(stop not listed),
+118,17141,Rio Rd at Greenbrier Dr Northbound,11:38:46,26.8,,True,False,11:39:00 via nextStopETA,14,11:39:00 via nextStopETA,14,11:38:48 via minutesToNextStops,2
+120,13296,Walmart,10:59:21,3.0,,True,True,,,,,,
+120,16583,Mall Dr at Hillsdale Dr,11:22:46,17.5,1,False,False,11:25:00 via nextStopETA,134,11:24:48 via minutesToNextStops,122,(stop not listed),
+120,16009,Rio Rd at Putt Putt,11:28:38,27.3,,True,False,11:28:00 via nextStopETA,-38,11:28:38 via minutesToNextStops,0,11:27:38 via minutesToNextStops,-60
+120,19812,Rio Rd at Northside Library Northbound,11:30:59,19.1,,True,False,11:30:00 via nextStopETA,-59,11:29:58 via minutesToNextStops,-61,11:29:58 via minutesToNextStops,-61
+120,14568,Four Seasons Dr at ACAC Southbound,11:33:12,29.7,,True,False,11:34:08 via minutesToNextStops,56,(stop not listed),,(stop not listed),
+120,14506,Commonwealth Dr at Westfield Rd Westbound,11:34:43,8.1,,False,False,(stop not listed),,(stop not listed),,(stop not listed),
+120,14497,Commonwealth Dr at Commonwealth Ct Westbound,11:35:42,25.1,1,False,False,11:38:38 via minutesToNextStops,176,(stop not listed),,(stop not listed),
+120,14484,Commonwealth Dr at Trophy Chase,11:36:26,11.5,1,False,False,11:39:28 via minutesToNextStops,182,(stop not listed),,(stop not listed),
+120,14778,Commonwealth Dr at Northwest Dr Southbound,11:37:07,26.1,1,False,False,11:40:08 via minutesToNextStops,181,(stop not listed),,(stop not listed),
+120,14466,Commonwealth Dr at Hydraulic Rd Southbound,11:37:48,7.1,1,False,False,11:39:48 via minutesToNextStops,120,(stop not listed),,(stop not listed),
+121,16021,Hillsdale Dr at Walden Ct,11:01:08,5.0,1,False,False,11:02:08 via minutesToNextStops,60,,,,
+121,19812,Rio Rd at Northside Library Northbound,11:04:52,22.8,,False,False,11:04:00 via nextStopETA,-52,11:03:48 via minutesToNextStops,-64,,
+121,17909,Rio Rd at Berkmar Dr,11:05:32,13.5,,False,False,11:06:28 via minutesToNextStops,56,11:06:28 via minutesToNextStops,56,(stop not listed),
+121,14497,Commonwealth Dr at Commonwealth Ct Westbound,11:10:38,25.1,1,False,False,11:10:38 via minutesToNextStops,0,(stop not listed),,(stop not listed),
+121,14484,Commonwealth Dr at Trophy Chase,11:11:19,7.2,1,False,False,11:12:18 via minutesToNextStops,59,(stop not listed),,(stop not listed),
+121,19746,Georgetown Rd at Inglewood Dr Southbound,11:14:32,28.3,,True,False,11:17:28 via minutesToNextStops,176,(stop not listed),,(stop not listed),
+121,15152,Georgetown Rd at Barracks Rd,11:15:24,18.5,1,False,False,11:17:28 via minutesToNextStops,124,(stop not listed),,(stop not listed),
+121,14387,Barracks Rd at Cedars Ct Southbound,11:17:55,5.1,1,False,False,11:20:00 via nextStopETA,125,11:19:58 via minutesToNextStops,123,(stop not listed),
+121,13265,BRSC at Arlington Southbound,11:22:19,9.7,1,False,False,11:21:00 via nextStopETA,-79,11:21:00 via nextStopETA,-79,11:21:18 via minutesToNextStops,-61
+121,12178,Millmont  St at USPS,11:32:44,9.6,,False,False,11:32:00 via nextStopETA,-44,11:30:00 via nextStopETA,-164,11:27:00 via nextStopETA,-344
+121,12184,Millmont St at Kroger,11:34:13,7.9,,False,False,11:34:00 via nextStopETA,-13,11:32:08 via minutesToNextStops,-125,11:29:08 via minutesToNextStops,-305
+121,13142,Georgetown Rd at Hessian Hills Way,11:38:13,10.6,,False,False,11:38:08 via minutesToNextStops,-5,11:37:08 via minutesToNextStops,-65,(stop not listed),
+121,13190,Georgetown Rd at Inglewood Dr Northbound,11:39:11,11.1,1,False,False,11:40:08 via minutesToNextStops,57,(stop not listed),,(stop not listed),
+122,15860,Altavista Ave,10:59:54,25.4,,True,False,,,,,,
+122,15873,Altavista Ave at Rialto St,11:00:23,9.6,1,False,False,11:01:28 via minutesToNextStops,65,,,,
+122,15927,Avon St at Druid Ave,11:01:32,9.5,1,False,False,11:02:28 via minutesToNextStops,56,,,,
+122,11321,E Market St at 10th St NE,11:05:25,6.2,,False,False,11:05:28 via minutesToNextStops,3,(stop not listed),,(stop not listed),
+122,17333,Downtown Transit Station,11:15:02,10.1,1,False,False,(stop not listed),,(stop not listed),,11:15:00 via nextStopETA,-2
+122,11015,E Water St at 3rd St,11:16:02,12.3,,False,False,11:16:00 via nextStopETA,-2,11:16:00 via nextStopETA,-2,11:15:58 via minutesToNextStops,-4
+122,11036,Water St at Omni,11:17:58,14.4,1,False,False,11:18:00 via nextStopETA,2,11:17:58 via minutesToNextStops,0,11:17:58 via minutesToNextStops,0
+122,12987,Ridge St at Cherry Ave,11:20:11,10.4,,False,False,11:20:08 via minutesToNextStops,-3,11:20:08 via minutesToNextStops,-3,(stop not listed),
+122,19324,Willoughby Square Shopping,11:24:28,7.7,1,False,False,11:24:28 via minutesToNextStops,0,11:24:28 via minutesToNextStops,0,(stop not listed),
+122,19934,5th St at Wahoo Way,11:27:40,14.1,,False,False,11:29:38 via minutesToNextStops,118,11:27:38 via minutesToNextStops,-2,(stop not listed),
+122,12939,Southwood,11:32:16,11.9,1,False,False,11:32:00 via nextStopETA,-16,11:34:18 via minutesToNextStops,122,(stop not listed),
+122,15841,5th St at County Office,11:34:46,15.3,,False,False,11:35:00 via nextStopETA,14,11:34:48 via minutesToNextStops,2,11:35:48 via minutesToNextStops,62
+122,15246,5th St at Holiday Inn,11:37:30,15.8,,True,False,11:37:00 via nextStopETA,-30,11:37:28 via minutesToNextStops,-2,11:37:28 via minutesToNextStops,-2
+122,15785,5th St at Bent Creed Rd,11:39:00,28.4,,False,False,11:39:00 via nextStopETA,0,11:38:58 via minutesToNextStops,-2,11:38:58 via minutesToNextStops,-2
+123,13119,Georgetown Rd at Hydraulic Rd Northbound,11:03:48,7.6,1,False,False,(stop not listed),,(stop not listed),,,
+123,13064,Commonwealth Dr at Commonwealth Ct Northbound,11:06:13,22.8,,False,False,(stop not listed),,(stop not listed),,(stop not listed),
+123,13017,Four Seasons Dr at ACAC,11:11:07,26.3,,True,False,11:13:08 via minutesToNextStops,121,11:13:08 via minutesToNextStops,121,(stop not listed),
+123,13093,Four Seasons Dr at Tennis Dr Northbound,11:11:45,13.2,,True,False,11:14:48 via minutesToNextStops,183,(stop not listed),,(stop not listed),
+123,13040,Rio Rd at Charlottesville Rehab Eastbound,11:12:54,9.9,,True,False,11:15:58 via minutesToNextStops,184,(stop not listed),,(stop not listed),
+123,13310,Rio Rd at Berkmar Cir,11:13:39,13.2,,False,False,11:16:38 via minutesToNextStops,179,(stop not listed),,(stop not listed),
+123,16583,Mall Dr at Hillsdale Dr,11:16:28,22.8,1,False,False,11:21:00 via nextStopETA,272,11:21:28 via minutesToNextStops,300,(stop not listed),
+123,16009,Rio Rd at Putt Putt,11:25:15,24.1,,True,False,11:26:00 via nextStopETA,45,11:26:18 via minutesToNextStops,63,11:25:18 via minutesToNextStops,3
+123,19812,Rio Rd at Northside Library Northbound,11:28:55,19.1,1,False,False,11:27:00 via nextStopETA,-115,11:26:00 via nextStopETA,-175,11:26:58 via minutesToNextStops,-117
+123,17909,Rio Rd at Berkmar Dr,11:29:51,7.9,1,False,False,11:30:48 via minutesToNextStops,57,11:27:48 via minutesToNextStops,-123,(stop not listed),
+123,20049,Berkmar Dr at Woodbrook,11:30:45,23.4,1,False,False,11:31:48 via minutesToNextStops,63,11:29:48 via minutesToNextStops,-57,(stop not listed),
+123,13296,Walmart,11:34:23,3.0,,True,True,11:33:00 via nextStopETA,-83,11:35:18 via minutesToNextStops,55,(stop not listed),
+124,16680,BRSC Kroger,10:59:13,14.0,1,False,False,,,,,,
+124,13265,BRSC at Arlington Southbound,11:02:11,28.3,,True,False,11:01:00 via nextStopETA,-71,,,,
+124,16389,Emmet St at Massie Rd,11:04:54,16.7,,False,False,11:04:00 via nextStopETA,-54,11:05:58 via minutesToNextStops,64,,
+124,16819,Emmet St at Ruffner Hall,11:06:51,22.4,,True,False,11:06:48 via minutesToNextStops,-3,11:07:48 via minutesToNextStops,57,(stop not listed),
+124,11690,JPA at Brandon Ave,11:11:07,16.4,1,False,False,(stop not listed),,11:09:00 via nextStopETA,-127,11:09:08 via minutesToNextStops,-119
+124,17028,JPA at Pinn Hall,11:11:48,21.8,,True,False,11:11:00 via nextStopETA,-48,11:09:48 via minutesToNextStops,-120,(stop not listed),
+124,11138,W Main St at 11th St Eastbound,11:14:42,8.5,,False,False,11:14:00 via nextStopETA,-42,11:13:38 via minutesToNextStops,-64,11:10:38 via minutesToNextStops,-244
+124,11101,W Main St at The Flats,11:16:36,5.3,,False,False,11:16:00 via nextStopETA,-36,11:15:38 via minutesToNextStops,-58,11:12:38 via minutesToNextStops,-238
+124,11062,W Main St at 4th St NW,11:17:59,6.3,1,False,False,11:17:00 via nextStopETA,-59,11:15:58 via minutesToNextStops,-121,(stop not listed),
+124,11043,Ridge McIntire at Omni,11:18:48,28.8,,True,False,11:20:48 via minutesToNextStops,120,11:18:48 via minutesToNextStops,0,(stop not listed),
+124,11299,E Market St at 2nd St NE,11:20:11,16.9,,False,False,11:22:08 via minutesToNextStops,117,(stop not listed),,(stop not listed),
+124,17333,Downtown Transit Station,11:23:52,12.0,,True,True,11:24:48 via minutesToNextStops,56,11:22:48 via minutesToNextStops,-64,(stop not listed),
+124,11015,E Water St at 3rd St,11:32:09,16.8,1,False,False,11:30:00 via nextStopETA,-129,11:30:00 via nextStopETA,-129,11:30:00 via nextStopETA,-129
+124,11036,Water St at Omni,11:35:15,14.4,1,False,False,(stop not listed),,11:33:00 via nextStopETA,-135,11:31:18 via minutesToNextStops,-237
+124,11058,W Main St at 5th St SW,11:37:22,7.7,,False,False,11:38:00 via nextStopETA,38,11:36:00 via nextStopETA,-82,11:34:18 via minutesToNextStops,-184
+124,11186,W Main St at The Standard,11:38:59,11.1,,False,False,11:39:58 via minutesToNextStops,59,11:39:58 via minutesToNextStops,59,(stop not listed),
+126,16531,Kroger at Hydraulic Rd,10:59:47,9.1,,False,False,,,,,,
+126,16651,Hillsdale Dr at Branchlands Northbound,11:08:14,25.0,,True,False,11:08:18 via minutesToNextStops,4,(stop not listed),,(stop not listed),
+126,17118,Mall Dr at Royal Ct,11:09:16,8.6,1,False,False,11:13:18 via minutesToNextStops,242,(stop not listed),,(stop not listed),
+126,20181,Rio Rd at Glen Wood Station,11:11:41,13.8,1,True,False,11:15:00 via nextStopETA,199,11:14:38 via minutesToNextStops,177,(stop not listed),
+126,16577,Hillsdale Dr at Greenbrier Southbound,11:15:55,13.3,,False,False,11:18:58 via minutesToNextStops,183,(stop not listed),,(stop not listed),
+126,20031,COSTCO,11:18:23,10.9,1,False,False,11:21:00 via nextStopETA,157,11:21:18 via minutesToNextStops,175,(stop not listed),
+126,19714,Stonefield Shopping,11:19:02,28.2,,True,False,11:21:58 via minutesToNextStops,176,11:21:58 via minutesToNextStops,176,(stop not listed),
+126,16680,BRSC Kroger,11:24:42,14.0,1,False,False,11:30:00 via nextStopETA,318,11:30:38 via minutesToNextStops,356,(stop not listed),
+126,13265,BRSC at Arlington Southbound,11:29:00,13.2,,False,False,11:31:00 via nextStopETA,120,11:31:00 via nextStopETA,120,11:30:58 via minutesToNextStops,118
+126,17102,Emmet St at Sprigg Ln,11:37:04,16.7,,False,False,11:37:00 via nextStopETA,-4,11:36:00 via nextStopETA,-64,11:36:08 via minutesToNextStops,-56
+126,16819,Emmet St at Ruffner Hall,11:38:02,22.4,,True,False,11:38:58 via minutesToNextStops,56,11:36:58 via minutesToNextStops,-64,11:36:58 via minutesToNextStops,-64
+200,17333,Downtown Transit Station,10:59:27,15.5,1,False,False,,,,,,
+200,11036,Water St at Omni,11:02:26,24.0,,True,False,11:03:00 via nextStopETA,34,11:03:28 via minutesToNextStops,62,,
+200,16013,Crescent Hall,11:04:28,9.2,1,False,False,11:06:00 via nextStopETA,92,11:06:28 via minutesToNextStops,120,,
+200,14292,1st St at Elliott Ave Southbound,11:05:20,24.5,,True,False,11:07:00 via nextStopETA,100,(stop not listed),,,
+200,14007,Ridge St at Hartman's Mill Rd Southbound,11:09:14,20.8,,False,False,11:10:18 via minutesToNextStops,64,11:10:18 via minutesToNextStops,64,(stop not listed),
+200,19297,Ridge St at Brookwood Dr Southbound,11:11:42,9.0,1,False,False,11:11:00 via nextStopETA,-42,11:10:38 via minutesToNextStops,-64,(stop not listed),
+200,19311,Brookwood Dr at 5th St Northbound,11:13:25,28.3,,True,False,11:14:00 via nextStopETA,35,11:13:28 via minutesToNextStops,3,(stop not listed),
+200,11563,Bailey Rd at Prospect Ave Westbound,11:14:28,9.0,,True,False,11:14:28 via minutesToNextStops,0,11:15:28 via minutesToNextStops,60,(stop not listed),
+200,11571,Prospect Ave at Greenstone Northbound,11:15:26,6.9,,False,False,11:15:28 via minutesToNextStops,2,11:16:28 via minutesToNextStops,62,(stop not listed),
+200,19266,9th St Buford Northbound,11:16:18,5.9,1,False,False,11:16:18 via minutesToNextStops,0,(stop not listed),,(stop not listed),
+200,19444,Roosevelt Brown Blvd at Grove St,11:18:20,26.3,1,False,False,11:17:00 via nextStopETA,-80,11:17:18 via minutesToNextStops,-62,(stop not listed),
+200,19437,Roosevelt Brown Blvd at King St,11:18:20,8.9,1,False,False,(stop not listed),,(stop not listed),,(stop not listed),
+200,17028,JPA at Pinn Hall,11:21:43,9.2,1,False,False,11:21:00 via nextStopETA,-43,11:21:00 via nextStopETA,-43,11:20:38 via minutesToNextStops,-65
+200,11138,W Main St at 11th St Eastbound,11:34:20,10.9,1,False,False,11:33:00 via nextStopETA,-80,11:32:00 via nextStopETA,-140,11:30:00 via nextStopETA,-260
+200,17426,9th St at Buford Southbound,11:38:18,29.7,,True,False,11:38:18 via minutesToNextStops,0,11:37:18 via minutesToNextStops,-60,11:35:18 via minutesToNextStops,-180
+200,19278,Prospect Ave at Greenstone Southbound,11:38:48,12.0,1,False,False,11:38:48 via minutesToNextStops,0,11:37:48 via minutesToNextStops,-60,(stop not listed),
+206,11309,E Market St at 5th St NE,10:59:26,9.5,,False,False,,,,,,
+206,17333,Downtown Transit Station,11:02:58,15.5,1,False,False,11:03:58 via minutesToNextStops,60,11:00:58 via minutesToNextStops,-120,,
+206,11015,E Water St at 3rd St,11:04:23,17.5,1,False,False,11:04:00 via nextStopETA,-23,11:03:18 via minutesToNextStops,-65,,
+206,11036,Water St at Omni,11:05:46,27.6,1,False,False,11:05:00 via nextStopETA,-46,11:04:48 via minutesToNextStops,-58,(stop not listed),
+206,11058,W Main St at 5th St SW,11:07:27,7.7,1,False,False,11:07:00 via nextStopETA,-27,11:06:28 via minutesToNextStops,-59,(stop not listed),
+206,11186,W Main St at The Standard,11:08:50,22.0,,False,False,11:09:48 via minutesToNextStops,58,11:08:48 via minutesToNextStops,-2,(stop not listed),
+206,11193,JPA at UVA Hospital,11:15:03,11.8,,True,False,11:14:00 via nextStopETA,-63,11:12:00 via nextStopETA,-183,(stop not listed),
+206,19459,10th St at Page St Northbound,11:20:28,8.5,,False,False,11:20:00 via nextStopETA,-28,11:18:00 via nextStopETA,-148,11:16:28 via minutesToNextStops,-240
+206,19463,10th St at Grady Ave Northbound,11:21:34,14.6,,True,False,11:21:00 via nextStopETA,-34,11:19:38 via minutesToNextStops,-116,11:18:38 via minutesToNextStops,-176
+206,13807,Rose Hill Dr at Henry Ave Northbound,11:23:43,11.9,1,False,False,11:23:38 via minutesToNextStops,-5,(stop not listed),,(stop not listed),
+206,19906,Rugby Ave at Rose Hill Dr,11:25:21,20.8,,True,False,11:27:18 via minutesToNextStops,117,(stop not listed),,(stop not listed),
+206,20096,YMCA,11:27:09,25.2,,True,False,11:27:00 via nextStopETA,-9,(stop not listed),,(stop not listed),
+206,15049,Grove Rd at Meadowbrook Heights Eastbound,11:30:00,17.6,1,False,True,(stop not listed),,(stop not listed),,(stop not listed),
+206,19526,Grove Rd at CHS,11:30:59,28.1,,True,True,(stop not listed),,(stop not listed),,(stop not listed),
+206,19542,Kenwood Ln at Yorktown Dr,11:32:11,17.7,,False,False,11:33:08 via minutesToNextStops,57,(stop not listed),,(stop not listed),
+210,19324,Willoughby Square Shopping,11:00:23,9.0,,True,True,11:00:28 via minutesToNextStops,5,,,,
+210,19307,Brookwood Dr at 5th St Southbound,11:04:28,26.0,,True,False,11:04:00 via nextStopETA,-28,11:04:28 via minutesToNextStops,0,,
+210,14076,Brookwood Dr at Ridge St Northbound,11:05:42,15.5,1,False,False,11:06:38 via minutesToNextStops,56,11:04:38 via minutesToNextStops,-64,(stop not listed),
+210,14216,Ridge St at Barksdale St Northbound,11:07:30,22.8,,True,False,11:08:28 via minutesToNextStops,58,(stop not listed),,(stop not listed),
+210,12081,Elliott Ave at Burnet St,11:08:14,20.0,,True,False,11:11:18 via minutesToNextStops,184,(stop not listed),,(stop not listed),
+210,16013,Crescent Hall,11:09:55,7.9,,False,False,11:11:58 via minutesToNextStops,123,(stop not listed),,(stop not listed),
+210,11494,W Market St at Old Preston Ave,11:15:43,24.1,,True,False,11:15:38 via minutesToNextStops,-5,(stop not listed),,(stop not listed),
+210,11299,E Market St at 2nd St NE,11:16:24,7.1,1,False,False,11:17:28 via minutesToNextStops,64,(stop not listed),,(stop not listed),
+210,11321,E Market St at 10th St NE,11:18:35,7.5,,False,True,11:18:38 via minutesToNextStops,3,(stop not listed),,(stop not listed),
+210,17333,Downtown Transit Station,11:19:42,29.0,,True,True,11:20:00 via nextStopETA,18,11:19:38 via minutesToNextStops,-4,(stop not listed),
+210,11015,E Water St at 3rd St,11:31:59,26.9,,True,False,11:31:00 via nextStopETA,-59,11:31:00 via nextStopETA,-59,11:31:00 via nextStopETA,-59
+210,11036,Water St at Omni,11:35:10,4.9,1,False,False,(stop not listed),,11:35:08 via minutesToNextStops,-2,11:33:08 via minutesToNextStops,-122
+213,11321,E Market St at 10th St NE,11:03:59,6.6,1,False,False,11:04:00 via nextStopETA,1,11:03:58 via minutesToNextStops,-1,,
+213,17333,Downtown Transit Station,11:05:31,9.8,,True,True,11:05:00 via nextStopETA,-31,11:05:28 via minutesToNextStops,-3,(stop not listed),
+213,11015,E Water St at 3rd St,11:15:52,7.0,1,False,False,11:16:00 via nextStopETA,8,11:16:00 via nextStopETA,8,11:15:48 via minutesToNextStops,-4
+213,11036,Water St at Omni,11:17:36,29.6,1,False,False,11:18:00 via nextStopETA,24,11:17:38 via minutesToNextStops,2,11:18:38 via minutesToNextStops,62
+213,19232,Monticello Ave at Ridge St Eastbound,11:19:56,8.2,,False,False,11:20:00 via nextStopETA,4,11:19:58 via minutesToNextStops,2,11:19:58 via minutesToNextStops,2
+213,19820,Monticello Ave at Rialto St,11:23:21,7.8,1,False,False,11:24:00 via nextStopETA,39,11:24:18 via minutesToNextStops,57,(stop not listed),
+213,12505,Monticello Ave Castalia St,11:24:08,28.2,1,False,False,11:25:08 via minutesToNextStops,60,(stop not listed),,(stop not listed),
+213,12676,Monticello Ave at Elliott Ave,11:25:11,7.5,1,False,False,11:27:08 via minutesToNextStops,117,(stop not listed),,(stop not listed),
+213,12800,PVCC Dickinson Building,11:29:18,6.5,1,False,False,11:30:00 via nextStopETA,42,11:30:18 via minutesToNextStops,60,(stop not listed),
+213,14926,PVCC at The Main Bldg,11:31:00,16.7,,False,False,11:31:00 via nextStopETA,0,11:30:58 via minutesToNextStops,-2,(stop not listed),
+213,19854,Monticello Rd at Carlton Rd,11:36:08,22.3,1,False,False,11:38:08 via minutesToNextStops,120,11:36:08 via minutesToNextStops,0,(stop not listed),
+213,19191,Monticello Ave at 6th St Westbound,11:39:03,8.4,,False,False,11:39:00 via nextStopETA,-3,(stop not listed),,(stop not listed),
+401,10687,Alderman Rd at Stadium Rd,10:59:57,22.0,1,False,False,,,,,,
+401,11234,Alderman Rd at AFC,11:00:51,11.3,,False,False,11:00:00 via nextStopETA,-51,,,,
+401,11782,McCormick Rd at Chemistry Building,11:04:39,4.3,1,False,False,11:04:00 via nextStopETA,-39,11:02:00 via nextStopETA,-159,,
+401,11802,McCormick Rd at Garret Hall,11:06:16,5.1,1,False,False,11:06:00 via nextStopETA,-16,11:05:18 via minutesToNextStops,-58,11:02:18 via minutesToNextStops,-238
+401,11908,McCormick Rd at UVA Chapel,11:07:02,5.5,1,False,False,11:07:58 via minutesToNextStops,56,11:05:58 via minutesToNextStops,-64,(stop not listed),
+401,11247,University Ave at The Women's Center,11:12:47,13.4,1,False,False,11:12:00 via nextStopETA,-47,11:11:00 via nextStopETA,-107,11:09:48 via minutesToNextStops,-179
+401,11138,W Main St at 11th St Eastbound,11:15:14,8.5,1,False,False,11:14:00 via nextStopETA,-74,11:14:18 via minutesToNextStops,-56,11:12:18 via minutesToNextStops,-176
+401,11101,W Main St at The Flats,11:16:49,17.8,1,False,False,11:16:00 via nextStopETA,-49,11:14:48 via minutesToNextStops,-121,11:12:48 via minutesToNextStops,-241
+401,20199,Midway Manor,11:19:06,14.5,1,False,False,11:21:08 via minutesToNextStops,122,11:20:08 via minutesToNextStops,62,(stop not listed),
+401,17305,The Downtown Mall,11:19:59,4.2,1,False,False,11:20:00 via nextStopETA,1,11:21:58 via minutesToNextStops,119,(stop not listed),
+401,11299,E Market St at 2nd St NE,11:21:10,5.8,1,False,False,11:21:00 via nextStopETA,-10,(stop not listed),,(stop not listed),
+401,11309,E Market St at 5th St NE,11:22:25,15.8,,False,False,11:23:00 via nextStopETA,35,11:25:28 via minutesToNextStops,183,(stop not listed),
+401,17333,Downtown Transit Station,11:25:00,13.3,1,False,False,11:24:00 via nextStopETA,-60,11:24:58 via minutesToNextStops,-2,(stop not listed),
+401,11015,E Water St at 3rd St,11:31:48,18.2,1,False,False,11:31:00 via nextStopETA,-48,11:31:00 via nextStopETA,-48,11:31:00 via nextStopETA,-48
+401,11058,W Main St at 5th St SW,11:36:44,7.7,,False,False,11:37:00 via nextStopETA,16,11:35:00 via nextStopETA,-104,11:33:48 via minutesToNextStops,-176
+401,11186,W Main St at The Standard,11:38:05,11.1,,False,False,11:38:08 via minutesToNextStops,3,11:38:08 via minutesToNextStops,3,(stop not listed),
