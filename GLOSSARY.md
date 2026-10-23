@@ -50,6 +50,10 @@ _Avoid_: stop (alone), station
 One scheduled run of a transit vehicle along a route pattern, identified by the GTFS trip id.
 _Avoid_: run, journey, trip (alone)
 
+**Terminal layover**:
+A hold at a terminal bus stop between two scheduled trips, during which the feed vendor already reports the next scheduled trip and its scheduled departure as the next arrival.
+_Avoid_: layover (alone), dwell, break
+
 ### Observations
 
 **Position fix**:
