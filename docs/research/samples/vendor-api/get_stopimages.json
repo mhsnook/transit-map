@@ -1,0 +1,34 @@
+// get_stopimages.json -- fetched 2026-10-23T15:20:34Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_stopimages
+// Stop amenities and images. 322 rows in full response; 2 shown. Only one row has an image.
+{
+ "get_stopimages": [
+  {
+   "stopid": 17333,
+   "type": "Transit Center",
+   "stoplocdesc": "On the Historical Downtown Mall",
+   "amenities": "Lighting,Sidewalk,Station Signage,Shelter,Real-Time Display,Restrooms",
+   "comments": null,
+   "images": [
+    "Content/images/59/1.png",
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "stopid": 10472,
+   "type": "Basic",
+   "stoplocdesc": "",
+   "amenities": null,
+   "comments": "10472",
+   "images": [
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "_note": "322 rows in full response; first 2 shown"
+}

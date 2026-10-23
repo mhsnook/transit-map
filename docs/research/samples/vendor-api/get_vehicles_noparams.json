@@ -1,0 +1,38 @@
+// get_vehicles_noparams.json -- fetched 2026-10-23T15:21:05Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_vehicles
+// Without inService=1 the response also lists not-in-service vehicles (routeID 777, scheduleNumber "NIS"). 39 rows in full response; one NIS row shown.
+{
+ "get_vehicles": [
+  {
+   "routeID": 777,
+   "patternID": 9998,
+   "equipmentID": "14",
+   "tripID": null,
+   "lat": 38.01191,
+   "lng": -78.48762,
+   "load": 0,
+   "capacity": 0,
+   "bkSlots": 0,
+   "wcSlots": 0,
+   "bkUsed": 0,
+   "wcUsed": 0,
+   "eLoad": 0,
+   "blockID": 0,
+   "nextStopID": 0,
+   "nextStopETA": -1,
+   "nextPatternStopID": 0,
+   "h": 0,
+   "lastStopID": 0,
+   "lastPatternStopID": 0,
+   "scheduleNumber": "NIS",
+   "inService": 0,
+   "onSchedule": null,
+   "vehicleType": "Bus",
+   "trainID": 0,
+   "receiveTime": 1792767730000,
+   "deadHead": 0,
+   "aID": "REDACTED"
+  }
+ ],
+ "_note": "39 rows, 22 with inService=0"
+}

@@ -1,0 +1,79 @@
+// trip_updates.pb (decoded with gtfs-realtime-bindings) -- fetched 2026-10-23T15:19:01Z from
+// https://s3.amazonaws.com/etatransit.gtfs/catpublic.etaspot.net/trip_updates.pb
+// TripUpdate entities. 17 in full file; 2 shown, stop_time_update cut to 3. Only arrival.delay and stop_sequence are set per stop; no stop_id, no time, no departure.
+{
+ "header": {
+  "gtfs_realtime_version": "1.0",
+  "incrementality": "FULL_DATASET",
+  "timestamp": "1792768706"
+ },
+ "entity": [
+  {
+   "id": "1",
+   "trip_update": {
+    "trip": {
+     "trip_id": "27418"
+    },
+    "stop_time_update": [
+     {
+      "stop_sequence": 4,
+      "arrival": {
+       "delay": 0
+      }
+     },
+     {
+      "stop_sequence": 5,
+      "arrival": {
+       "delay": 0
+      }
+     },
+     {
+      "stop_sequence": 6,
+      "arrival": {
+       "delay": 0
+      }
+     },
+     "...4 more"
+    ],
+    "vehicle": {
+     "id": "105"
+    },
+    "timestamp": "1792768701"
+   }
+  },
+  {
+   "id": "2",
+   "trip_update": {
+    "trip": {
+     "trip_id": "27581"
+    },
+    "stop_time_update": [
+     {
+      "stop_sequence": 15,
+      "arrival": {
+       "delay": 540
+      }
+     },
+     {
+      "stop_sequence": 16,
+      "arrival": {
+       "delay": 540
+      }
+     },
+     {
+      "stop_sequence": 17,
+      "arrival": {
+       "delay": 540
+      }
+     },
+     "...11 more"
+    ],
+    "vehicle": {
+     "id": "101"
+    },
+    "timestamp": "1792768697"
+   }
+  }
+ ],
+ "_note": "17 entities in full file; 2 shown"
+}

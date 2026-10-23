@@ -1,0 +1,100 @@
+// alerts.pb (decoded with gtfs-realtime-bindings) -- fetched 2026-10-23T15:19:11Z from
+// https://s3.amazonaws.com/etatransit.gtfs/catpublic.etaspot.net/alerts.pb
+// Alert entities. 3 in full file, all shown. informed_entity is only agency_id=1.
+{
+ "header": {
+  "gtfs_realtime_version": "1.0",
+  "incrementality": "FULL_DATASET",
+  "timestamp": "1792768706"
+ },
+ "entity": [
+  {
+   "id": "alert_2981",
+   "alert": {
+    "active_period": [
+     {
+      "start": "1792750980",
+      "end": "1792779300"
+     }
+    ],
+    "informed_entity": [
+     {
+      "agency_id": "1"
+     }
+    ],
+    "header_text": {
+     "translation": [
+      {
+       "text": "Trolley",
+       "language": "en"
+      }
+     ]
+    },
+    "description_text": {
+     "translation": [
+      {
+       "text": "Trolley Leaving Chapel @ 6:32 Will Not be in Service, Expect Delays",
+       "language": "en"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "alert_2982",
+   "alert": {
+    "active_period": [
+     {
+      "start": "1792752900",
+      "end": "1792792200"
+     }
+    ],
+    "informed_entity": [
+     {
+      "agency_id": "1"
+     }
+    ],
+    "header_text": {
+     "translation": [
+      {
+       "text": "Route 4",
+       "language": "en"
+      }
+     ]
+    },
+    "description_text": {
+     "translation": [
+      {
+       "text": "Route 4 Leaving the DTS @ 6:55 Will Not Be in Service, Expect Delays",
+       "language": "en"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "alert_2980",
+   "alert": {
+    "active_period": [
+     {
+      "start": "1792752540",
+      "end": "1792770300"
+     }
+    ],
+    "informed_entity": [
+     {
+      "agency_id": "1"
+     }
+    ],
+    "header_text": {
+     "translation": [
+      {
+       "text": "Route 9",
+       "language": "en"
+      }
+     ]
+    },
+    "description_text": {
+     "translation": [
+      {
+// ...truncated to fit 100 lines

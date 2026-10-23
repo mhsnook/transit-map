@@ -1,0 +1,64 @@
+// get_patterns.json -- fetched 2026-10-23T15:19:42Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_patterns
+// Route patterns. 35 rows in full response; 2 shown, stopIDs[] and encLine cut. decLine is always [].
+{
+ "get_patterns": [
+  {
+   "id": 48,
+   "name": "1 MARKET/DOWNTOWN",
+   "extID": "1 MARKET/DOWNTOWN",
+   "type": 1,
+   "length": 4.561025142669678,
+   "color": "#F47721",
+   "encLine": "}ybgFbv~}Ml@wC~AoGh@iBs@eAa@WuBsAmA{@YEY...<435 more chars>",
+   "decLine": [],
+   "routes": [
+    1
+   ],
+   "routeNames": [
+    "1 PVCC/Woolen Mills"
+   ],
+   "stations": [],
+   "stopIDs": [
+    11309,
+    16512,
+    19115,
+    19104,
+    19087,
+    12580,
+    19060,
+    19039,
+    "...13 more"
+   ]
+  },
+  {
+   "id": 49,
+   "name": "1 PVCC",
+   "extID": "1 PVCC",
+   "type": 1,
+   "length": 3.4571890830993652,
+   "color": "#F47721",
+   "encLine": "sobgFhr~}MA\\?fABhAC`@wBjJ_D`NgAbFWz@ChAb...<309 more chars>",
+   "decLine": [],
+   "routes": [
+    1
+   ],
+   "routeNames": [
+    "1 PVCC/Woolen Mills"
+   ],
+   "stations": [],
+   "stopIDs": [
+    17333,
+    11015,
+    21031,
+    11036,
+    19232,
+    21032,
+    14237,
+    14228,
+    "...6 more"
+   ]
+  }
+ ],
+ "_note": "35 rows in full response; first 2 shown"
+}

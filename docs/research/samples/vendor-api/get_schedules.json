@@ -1,0 +1,57 @@
+// get_schedules.json -- fetched 2026-10-23T15:22:07Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_schedules&stopID=19444&includeETAData=1&orderedETAArray=1
+// Full-day timetable for one bus stop. 86 rows in full response; 3 shown. includeETAData/orderedETAArray change nothing (byte-identical to the plain call).
+{
+ "get_schedules": [
+  {
+   "corridorID": 4,
+   "runID": 29634,
+   "scheduleNumber": "06:25:00-12",
+   "scheduleID": 16,
+   "scheduleName": "4 - OUT - MTuWThF",
+   "stationID": 19444,
+   "patternStopID": 20380,
+   "stationName": "Roosevelt Brown Blvd at Grove St",
+   "stopTime": "6:33AM",
+   "timePoint": 0,
+   "weekdays": "12345",
+   "direction": "O",
+   "directionLabel": "Outbound",
+   "track": "3"
+  },
+  {
+   "corridorID": 6,
+   "runID": 29788,
+   "scheduleNumber": "06:25:00-25",
+   "scheduleID": 18,
+   "scheduleName": "6 - OUT - MTuWThFSa",
+   "stationID": 19444,
+   "patternStopID": 21287,
+   "stationName": "Roosevelt Brown Blvd at Grove St",
+   "stopTime": "6:42AM",
+   "timePoint": 0,
+   "weekdays": "123456",
+   "direction": "O",
+   "directionLabel": "Outbound",
+   "track": "3"
+  },
+  {
+   "corridorID": 4,
+   "runID": 29635,
+   "scheduleNumber": "06:55:00-12",
+   "scheduleID": 16,
+   "scheduleName": "4 - OUT - MTuWThF",
+   "stationID": 19444,
+   "patternStopID": 20380,
+   "stationName": "Roosevelt Brown Blvd at Grove St",
+   "stopTime": "7:03AM",
+   "timePoint": 0,
+   "weekdays": "12345",
+   "direction": "O",
+   "directionLabel": "Outbound",
+   "track": "3"
+  }
+ ],
+ "digest": "f661e5",
+ "_note": "86 rows in full response; first 3 shown"
+}

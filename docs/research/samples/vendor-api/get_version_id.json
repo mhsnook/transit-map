@@ -1,0 +1,6 @@
+// get_version_id.json -- fetched 2026-10-23T15:20:03Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_version_id
+// Static-data version; equals feed_version in the GTFS feed feed_info.txt. Full response. Identical with no token or a wrong token.
+{
+ "versionID": "95"
+}

@@ -1,0 +1,46 @@
+// get_stop_etas.json -- fetched 2026-10-23T15:21:46Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_stop_etas&stopID=19444&statusData=1
+// Arrival predictions for one bus stop. Full response.
+{
+ "get_stop_etas": [
+  {
+   "id": "19444",
+   "enRoute": [
+    {
+     "blockID": 192,
+     "stopID": 19444,
+     "patternStopID": 20380,
+     "timePoint": 0,
+     "minutes": 17,
+     "schedule": "11:38AM",
+     "time": "11:39AM",
+     "scheduleNumber": "11:30:00-12",
+     "status": "11:39AM",
+     "statuscolor": "#39B139",
+     "track": 3,
+     "direction": "Outbound",
+     "directionAbbr": "O",
+     "equipmentID": "101",
+     "routeID": 4
+    },
+    {
+     "blockID": 196,
+     "stopID": 19444,
+     "patternStopID": 21287,
+     "timePoint": 0,
+     "minutes": 25,
+     "time": "11:47AM",
+     "status": "On Time",
+     "schedule": "11:47AM",
+     "scheduleNumber": "11:30:00-25",
+     "statuscolor": "#39B139",
+     "track": 3,
+     "direction": "Outbound",
+     "directionAbbr": "O",
+     "equipmentID": "210",
+     "routeID": 6
+    }
+   ]
+  }
+ ]
+}

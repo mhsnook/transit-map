@@ -1,0 +1,53 @@
+// get_stop_etas_multi.json -- fetched 2026-10-23T15:21:57Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_stop_etas&stopIDs=19444,17028&statusData=1
+// stopIDs comma list returns one element per stop. enRoute[] cut to 1 per stop.
+{
+ "get_stop_etas": [
+  {
+   "id": "19444",
+   "enRoute": [
+    {
+     "blockID": 192,
+     "stopID": 19444,
+     "patternStopID": 20380,
+     "timePoint": 0,
+     "minutes": 17,
+     "schedule": "11:38AM",
+     "time": "11:39AM",
+     "scheduleNumber": "11:30:00-12",
+     "status": "11:39AM",
+     "statuscolor": "#39B139",
+     "track": 3,
+     "direction": "Outbound",
+     "directionAbbr": "O",
+     "equipmentID": "101",
+     "routeID": 4
+    },
+    "...1 more"
+   ]
+  },
+  {
+   "id": "17028",
+   "enRoute": [
+    {
+     "blockID": 198,
+     "stopID": 17028,
+     "patternStopID": 21324,
+     "timePoint": 1,
+     "minutes": 18,
+     "time": "11:40AM",
+     "status": "On Time",
+     "schedule": "11:40AM",
+     "scheduleNumber": "11:14:00-27",
+     "statuscolor": "#39B139",
+     "track": 3,
+     "direction": "Inbound",
+     "directionAbbr": "I",
+     "equipmentID": "126",
+     "routeID": 7
+    },
+    "...3 more"
+   ]
+  }
+ ]
+}

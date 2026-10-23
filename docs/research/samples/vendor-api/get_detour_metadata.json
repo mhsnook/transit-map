@@ -1,0 +1,11 @@
+// get_detour_metadata.json -- fetched 2026-10-23T15:20:13Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_detour_metadata
+// No detours today. Full response.
+{
+ "get_detour_metadata": {
+  "version": null,
+  "ready": false,
+  "complete": false,
+  "detours": []
+ }
+}

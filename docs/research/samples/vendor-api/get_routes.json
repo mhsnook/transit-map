@@ -1,0 +1,58 @@
+// get_routes.json -- fetched 2026-10-23T15:19:21Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_routes
+// Bus routes. 12 rows in full response; 2 shown, stops[] and encLine cut.
+{
+ "get_routes": [
+  {
+   "id": 1,
+   "name": "1 PVCC/Woolen Mills",
+   "abbr": "1",
+   "stops": [
+    12800,
+    17333,
+    11015,
+    14926,
+    19883,
+    11036,
+    19877,
+    19232,
+    "...36 more"
+   ],
+   "vType": "Bus",
+   "encLine": "}ybgFbv~}Ml@wC~AoGh@iBs@eAa@WuBsAmA{@YEY...<1638 more chars>",
+   "color": "#F47721",
+   "type": "Schedule",
+   "order": 1,
+   "showDirection": false,
+   "showPlatform": false,
+   "showScheduleNumber": 0,
+   "useCustomShape": 0
+  },
+  {
+   "id": 2,
+   "name": "2 5th St Station",
+   "abbr": "2",
+   "stops": [
+    17333,
+    20054,
+    11015,
+    20065,
+    20077,
+    11036,
+    20083,
+    12994,
+    "...10 more"
+   ],
+   "vType": "Bus",
+   "encLine": "uz~fFbvb~MAoB@YGgAKg@`Ae@LOr@u@ZU|BwArAw...<1034 more chars>",
+   "color": "#9C4E0F",
+   "type": "Schedule",
+   "order": 2,
+   "showDirection": false,
+   "showPlatform": false,
+   "showScheduleNumber": 0,
+   "useCustomShape": 0
+  }
+ ],
+ "_note": "12 rows in full response; first 2 shown"
+}

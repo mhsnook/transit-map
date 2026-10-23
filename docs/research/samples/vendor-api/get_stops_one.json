@@ -1,0 +1,27 @@
+// get_stops_one.json -- fetched 2026-10-23T15:22:17Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_stops&stopID=19444
+// stopID filter returns every (route, stop) row for that stop.
+{
+ "get_stops": [
+  {
+   "rid": 4,
+   "rsid": 281588,
+   "id": 19444,
+   "name": "Roosevelt Brown Blvd at Grove St",
+   "lat": 38.03003692626953,
+   "lng": -78.49559020996094,
+   "extID": "19444",
+   "shortName": "19444"
+  },
+  {
+   "rid": 6,
+   "rsid": 412660,
+   "id": 19444,
+   "name": "Roosevelt Brown Blvd at Grove St",
+   "lat": 38.03003692626953,
+   "lng": -78.49559020996094,
+   "extID": "19444",
+   "shortName": "19444"
+  }
+ ]
+}

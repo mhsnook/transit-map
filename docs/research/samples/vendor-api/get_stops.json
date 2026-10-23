@@ -1,0 +1,48 @@
+// get_stops.json -- fetched 2026-10-23T15:19:52Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_stops
+// Bus stops, one row per (route, stop) pair keyed by rsid. 454 rows / 313 distinct stop ids in full response; 4 shown.
+{
+ "get_stops": [
+  {
+   "rid": 1,
+   "rsid": 83248,
+   "id": 17712,
+   "name": "Chesapeake St at 18th St NE",
+   "lat": 38.02523422241211,
+   "lng": -78.46121978759766,
+   "extID": "17712",
+   "shortName": "17712"
+  },
+  {
+   "rid": 1,
+   "rsid": 84623,
+   "id": 19087,
+   "name": "Chesapeake St at Meade Park",
+   "lat": 38.027137756347656,
+   "lng": -78.46600341796875,
+   "extID": "19087",
+   "shortName": "19087"
+  },
+  {
+   "rid": 1,
+   "rsid": 77948,
+   "id": 12412,
+   "name": "Chesapeake St at Riverview St",
+   "lat": 38.02422332763672,
+   "lng": -78.4587173461914,
+   "extID": "12412",
+   "shortName": "12412"
+  },
+  {
+   "rid": 1,
+   "rsid": 84596,
+   "id": 19060,
+   "name": "Chesapeake St at Riverview St",
+   "lat": 38.023948669433594,
+   "lng": -78.45824432373047,
+   "extID": "19060",
+   "shortName": "19060"
+  }
+ ],
+ "_note": "454 rows in full response; first 4 shown"
+}

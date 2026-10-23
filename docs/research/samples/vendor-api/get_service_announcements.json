@@ -1,0 +1,40 @@
+// get_service_announcements.json -- fetched 2026-10-23T15:20:23Z from
+// https://catpublic.etaspot.net/service.php?token=TESTING&service=get_service_announcements
+// Service alerts. Full response (3 today). Times are local (America/New_York), no zone marker.
+{
+ "get_service_announcements": [
+  {
+   "type": "normal",
+   "announcements": [
+    {
+     "text": "Trolley Leaving Chapel @ 6:32 Will Not be in Service, Expect Delays",
+     "start": "2026-10-23 06:23:00",
+     "end": "2026-10-23 14:15:00",
+     "source": "SPOT Console"
+    }
+   ]
+  },
+  {
+   "type": "normal",
+   "announcements": [
+    {
+     "text": "Route 4 Leaving the DTS @ 6:55 Will Not Be in Service, Expect Delays",
+     "start": "2026-10-23 06:55:00",
+     "end": "2026-10-23 17:50:00",
+     "source": "SPOT Console"
+    }
+   ]
+  },
+  {
+   "type": "normal",
+   "announcements": [
+    {
+     "text": "Route 9 Leaving the CHS @ 6:49am Will Not Be in Service, Expect Delays",
+     "start": "2026-10-23 06:49:00",
+     "end": "2026-10-23 11:45:00",
+     "source": "SPOT Console"
+    }
+   ]
+  }
+ ]
+}
