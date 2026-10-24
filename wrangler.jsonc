@@ -13,5 +13,12 @@
   "durable_objects": {
     "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Collector"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Collector"] }],
+  // Bindings are not inherited by previews; without this, env.COLLECTOR is
+  // undefined in a preview and the page 1101s.
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
+    }
+  }
 }
