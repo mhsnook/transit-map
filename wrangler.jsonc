@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "transit-map",
+  "compatibility_date": "2026-10-19",
+  "compatibility_flags": ["nodejs_compat"],
+  // Not "@tanstack/react-start/server-entry": Durable Object classes must be
+  // exported from the Worker's main module, so src/server.ts wraps it.
+  "main": "src/server.ts",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "durable_objects": {
+    "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Collector"] }],
+  // Bindings are not inherited by previews; without this, env.COLLECTOR is
+  // undefined in a preview and the page 1101s.
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
+    }
+  }
+}
