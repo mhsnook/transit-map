@@ -15,21 +15,7 @@ The app runs at http://localhost:3000 inside the Workers runtime (via `@cloudfla
 
 ## Deploy
 
-Log in to Cloudflare once:
-
-```bash
-pnpm wrangler login
-```
-
-Then deploy:
-
-```bash
-pnpm deploy
-```
-
-This builds the app and runs `wrangler deploy`, which prints the public `*.workers.dev` URL.
-
-The collector's write volume needs the Workers Paid plan once it starts polling (see [#5](https://github.com/mhsnook/transit-map/issues/5)). The hello-world deploy runs on the Free plan.
+Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Workers Builds.
 
 ## Layout
 
