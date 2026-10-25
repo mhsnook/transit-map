@@ -86,20 +86,24 @@ export function TransitMap() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-1.5 sm:gap-2">
         {busRoutes.map((r) => (
           <button
             key={r.id}
             type="button"
             onClick={() => setSelectedRoute(selectedRoute === r.id ? null : r.id)}
-            className="rounded-full border-2 px-3 py-1 text-sm"
+            title={r.name}
+            aria-label={r.name}
+            className="min-w-9 rounded-full border-2 px-2.5 py-0.5 text-sm sm:px-3 sm:py-1"
             style={{
               borderColor: r.color,
               background: selectedRoute === r.id ? r.color : 'white',
               color: selectedRoute === r.id ? 'white' : 'black',
             }}
           >
-            {r.name}
+            {/* route names start with their number, except "Trolley" */}
+            <span className="sm:hidden">{r.name.split(' ')[0]}</span>
+            <span className="hidden sm:inline">{r.name}</span>
           </button>
         ))}
       </div>
@@ -116,11 +120,11 @@ export function TransitMap() {
               layout={{ 'line-join': 'round', 'line-cap': 'round' }}
               paint={{
                 'line-color': ['get', 'color'],
-                'line-width': ['case', ['==', ['get', 'route_id'], selectedRoute ?? -1], 5, 3],
+                'line-width': ['case', ['==', ['get', 'route_id'], selectedRoute ?? -1], 5, 4],
                 'line-opacity':
                   selectedRoute == null
-                    ? 0.8
-                    : ['case', ['==', ['get', 'route_id'], selectedRoute], 0.9, 0.15],
+                    ? 0.5
+                    : ['case', ['==', ['get', 'route_id'], selectedRoute], 0.9, 0.12],
               }}
             />
           </Source>
