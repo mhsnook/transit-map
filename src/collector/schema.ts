@@ -57,11 +57,14 @@ export const pollOutcomes = [
   'parse_error',
 ] as const
 
+export const pollSources = [...sources, 'reference'] as const
+export type PollSource = (typeof pollSources)[number]
+
 export const pollAttempts = sqliteTable(
   'poll_attempts',
   {
     id: integer().primaryKey(),
-    source: text({ enum: sources }).notNull(),
+    source: text({ enum: pollSources }).notNull(),
     started_at: integer().notNull(),
     duration_ms: integer().notNull(),
     outcome: text({ enum: pollOutcomes }).notNull(),
@@ -72,3 +75,33 @@ export const pollAttempts = sqliteTable(
   },
   (t) => [index('poll_attempts_started_at').on(t.started_at)],
 )
+
+// Reference data from the JSON API.
+
+export const busRoutes = sqliteTable('bus_routes', {
+  id: integer().primaryKey(),
+  name: text().notNull(),
+  short_name: text().notNull(),
+  color: text().notNull(),
+})
+
+export const routePatterns = sqliteTable('route_patterns', {
+  id: integer().primaryKey(),
+  name: text().notNull(),
+  route_id: integer().notNull(),
+  color: text().notNull(),
+  enc_line: text().notNull(),
+})
+
+export const busStops = sqliteTable('bus_stops', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  lat: real().notNull(),
+  lng: real().notNull(),
+})
+
+export const routeStops = sqliteTable('route_stops', {
+  id: integer().primaryKey(),
+  route_id: integer().notNull(),
+  stop_id: text().notNull(),
+})

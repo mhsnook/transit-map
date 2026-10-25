@@ -23,6 +23,7 @@ Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Worker
 - `src/collector/`: the `Collector` Durable Object, bound as `env.COLLECTOR`. It polls the feed vendor every 10 s and keeps the monitoring record. See [`docs/adr/0001-collector-topology.md`](docs/adr/0001-collector-topology.md).
 - `src/collector/schema.ts`: Drizzle tables. After changing them, run `pnpm db:generate` to add a migration; the Collector applies migrations on start.
 - `src/live/`: the party-db collections browsers sync, shared by the Collector and the client.
+- `src/components/TransitMap.tsx`: the MapLibre map (OpenFreeMap tiles) of route patterns, bus stops and transit vehicles.
 - `src/routes/`: TanStack Router file routes.
 - `wrangler.jsonc`: Worker config, bindings and Durable Object migrations.
 
