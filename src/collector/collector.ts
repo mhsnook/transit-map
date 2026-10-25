@@ -3,13 +3,14 @@ import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import { lt } from 'drizzle-orm'
 import { PartyDbServer } from 'party-db/server'
 import {
+  busRouteCollection,
   busStopCollection,
   liveCollections,
   newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
 } from '../live/collections'
-import { anyFieldChanged, diffOps } from './diff'
+import { syncBatch } from './diff'
 import migrations from './migrations/migrations'
 import * as schema from './schema'
 import {
@@ -21,26 +22,36 @@ import {
   type NewestPositionFixRow,
   type PositionFixRow,
 } from './feeds'
-import { PATTERNS_URL, STOPS_URL, parsePatterns, parseStops } from './reference'
+import {
+  PATTERNS_URL,
+  ROUTES_URL,
+  STOPS_URL,
+  parsePatterns,
+  parseRouteAbbrs,
+  parseStops,
+  referenceRows,
+} from './reference'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
 const RETENTION_MS = 14 * 24 * 60 * 60 * 1000
 const PRUNE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_EVERY_MS = 60 * 60 * 1000
+const REFERENCE_RETRY_MS = 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
-  // One hour of ticks. A client away longer gets a fresh snapshot, which is
-  // about 120 KB.
-  oplogRetention = 360
+  // Five minutes of ticks. Each tick's batch carries every moving transit
+  // vehicle, so replaying more than this costs more than the ~120 KB fresh
+  // snapshot a client gets instead.
+  oplogRetention = 30
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
   #lastPrunedAt = 0
-  #referenceRefreshedAt = 0
+  #referenceDueAt = 0
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -76,15 +87,10 @@ export class Collector extends PartyDbServer<Env> {
       'json_api',
       JSON_API_URL,
       {},
-      async (response) => {
-        const contentType = response.headers.get('content-type') ?? ''
-        // unknown services answer 200 with an HTML error page
-        if (!contentType.includes('json')) throw new Error(`content-type ${contentType}`)
-        return parseJsonApi(await response.json(), Date.now())
-      },
-      jsonApiHistoryRow,
+      async (response) => parseJsonApi(await readJson(response), Date.now()),
+      (fixes) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
     )
-    if (polled) await this.#syncNewestFixes(polled.rows)
+    if (polled) await this.#syncNewestFixes(polled.value)
   }
 
   async #pollGtfsRt() {
@@ -94,40 +100,39 @@ export class Collector extends PartyDbServer<Env> {
       this.#gtfsRtEtag ? { 'if-none-match': this.#gtfsRtEtag } : {},
       async (response) =>
         parseGtfsRtPositions(new Uint8Array(await response.arrayBuffer()), Date.now()),
-      (row) => row,
+      (fixes) => this.#storeFixes(fixes),
     )
     if (polled) this.#gtfsRtEtag = polled.response.headers.get('etag')
   }
 
-  // Records the poll attempt and its position fixes. Returns null when there
-  // was nothing to parse or parsing failed.
+  // Records the poll attempt, plus whatever `store` reports. Returns null when
+  // there was nothing to parse or parsing failed.
   async #poll<T>(
-    source: schema.Source,
+    source: schema.PollSource,
     url: string,
     headers: Record<string, string>,
-    parse: (response: Response) => Promise<T[]>,
-    toHistory: (row: T) => PositionFixRow,
-  ): Promise<{ response: Response; rows: T[] } | null> {
+    parse: (response: Response) => Promise<T>,
+    store?: (value: T) => Partial<PollResult>,
+  ): Promise<{ response: Response; value: T } | null> {
     const { attempt, response } = await this.#fetch(source, url, headers)
     if (!response) {
       this.#recordAttempt(attempt)
       return null
     }
-    let rows: T[]
+    let value: T
     try {
-      rows = await parse(response)
+      value = await parse(response)
     } catch (error) {
       this.#recordAttempt({ ...attempt, outcome: 'parse_error', error: String(error) })
       return null
     }
-    const fixesNew = this.#insertHistory(rows.map(toHistory))
-    this.#recordAttempt({ ...attempt, fixes_seen: rows.length, fixes_new: fixesNew })
-    return { response, rows }
+    this.#recordAttempt({ ...attempt, ...store?.(value) })
+    return { response, value }
   }
 
   // Resolves with a response only for a 2xx; anything else is a finished attempt.
   async #fetch(
-    source: schema.Source,
+    source: schema.PollSource,
     url: string,
     headers: Record<string, string>,
   ): Promise<{ attempt: PollResult; response?: Response }> {
@@ -161,8 +166,8 @@ export class Collector extends PartyDbServer<Env> {
     this.db.insert(schema.pollAttempts).values(attempt).run()
   }
 
-  // Returns how many rows were new; a fix served twice is stored once.
-  #insertHistory(rows: PositionFixRow[]): number {
+  // A fix served twice is stored once.
+  #storeFixes(rows: PositionFixRow[]): Partial<PollResult> {
     let inserted = 0
     for (const row of rows) {
       inserted += this.db
@@ -172,59 +177,50 @@ export class Collector extends PartyDbServer<Env> {
         .returning({ fix_time: schema.positionFixes.fix_time })
         .all().length
     }
-    return inserted
+    return { fixes_seen: rows.length, fixes_new: inserted }
   }
 
   // Transit vehicles that leave the feed are deleted; a fix is only written
   // when it is newer than the one held.
   async #syncNewestFixes(fixes: NewestPositionFixRow[]) {
-    const ops = diffOps(
+    const batch = syncBatch(
+      newestPositionFixCollection,
       this.db.select().from(schema.newestPositionFixes).all(),
       fixes,
-      'equipment_id',
       (prev, fix) => fix.fix_time > prev.fix_time,
     )
-    if (ops.length === 0) return
-    await this.commit([{ channel: newestPositionFixCollection.name, ops }])
+    if (batch.ops.length > 0) await this.commit([batch])
   }
 
-  // Route patterns and bus stops change with the schedule, a few times a
-  // year. A failed refresh is retried on the next tick.
+  // Bus routes, route patterns and bus stops change with the schedule, a few
+  // times a year.
   async #refreshReferenceIfDue() {
-    if (Date.now() - this.#referenceRefreshedAt < REFERENCE_EVERY_MS) return
-    try {
-      await this.#refreshReference()
-      this.#referenceRefreshedAt = Date.now()
-    } catch (error) {
-      console.error('reference refresh failed', error)
-    }
+    const now = Date.now()
+    if (now < this.#referenceDueAt) return
+    const refreshed = await this.#refreshReference()
+    this.#referenceDueAt = now + (refreshed ? REFERENCE_EVERY_MS : REFERENCE_RETRY_MS)
   }
 
-  async #refreshReference() {
-    const [patternsBody, stopsBody] = await Promise.all(
-      [PATTERNS_URL, STOPS_URL].map(async (url) => {
-        const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
-        if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-        return response.json()
-      }),
-    )
-    const patterns = parsePatterns(patternsBody)
-    const { busStops, routeStops } = parseStops(stopsBody)
+  async #refreshReference(): Promise<boolean> {
+    const fetchReference = <T>(url: string, parse: (body: unknown) => T) =>
+      this.#poll('reference', url, {}, async (response) => parse(await readJson(response)))
+    const [patterns, abbrs, stops] = await Promise.all([
+      fetchReference(PATTERNS_URL, parsePatterns),
+      fetchReference(ROUTES_URL, parseRouteAbbrs),
+      fetchReference(STOPS_URL, parseStops),
+    ])
+    if (!patterns || !abbrs || !stops) return false
+
+    const currentRoutes = this.db.select().from(schema.busRoutes).all()
+    const { busRoutes, routePatterns } = referenceRows(patterns.value, abbrs.value, currentRoutes)
     const batches = [
-      {
-        channel: routePatternCollection.name,
-        ops: diffOps(this.db.select().from(schema.routePatterns).all(), patterns, 'id', anyFieldChanged),
-      },
-      {
-        channel: busStopCollection.name,
-        ops: diffOps(this.db.select().from(schema.busStops).all(), busStops, 'id', anyFieldChanged),
-      },
-      {
-        channel: routeStopCollection.name,
-        ops: diffOps(this.db.select().from(schema.routeStops).all(), routeStops, 'id', anyFieldChanged),
-      },
+      syncBatch(busRouteCollection, currentRoutes, busRoutes),
+      syncBatch(routePatternCollection, this.db.select().from(schema.routePatterns).all(), routePatterns),
+      syncBatch(busStopCollection, this.db.select().from(schema.busStops).all(), stops.value.busStops),
+      syncBatch(routeStopCollection, this.db.select().from(schema.routeStops).all(), stops.value.routeStops),
     ].filter((batch) => batch.ops.length > 0)
     if (batches.length > 0) await this.commit(batches)
+    return true
   }
 
   #pruneIfDue() {
@@ -235,4 +231,11 @@ export class Collector extends PartyDbServer<Env> {
     this.db.delete(schema.positionFixes).where(lt(schema.positionFixes.fix_time, cutoff)).run()
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
   }
+}
+
+// unknown JSON API services answer 200 with an HTML error page
+async function readJson(response: Response): Promise<unknown> {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('json')) throw new Error(`content-type ${contentType}`)
+  return response.json()
 }

@@ -9,12 +9,12 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
-  worker: { format: 'es' },
   plugins: [
     devtools({
-      // react-map-gl passes unknown props through to MapLibre, which rejects
-      // the injected data-tsd-source attribute.
-      injectSource: { enabled: true, ignore: { components: ['Map', 'Source', 'Layer'] } },
+      // react-map-gl's Source and Layer pass every prop into MapLibre's style
+      // spec, which rejects the injected data-tsd-source. These match JSX
+      // names, so renaming those imports brings the error back.
+      injectSource: { enabled: true, ignore: { components: ['Source', 'Layer'] } },
     }),
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),

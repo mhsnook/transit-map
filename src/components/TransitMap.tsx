@@ -1,10 +1,11 @@
 import { decode } from '@googlemaps/polyline-codec'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo, useState } from 'react'
-import Map, { Layer, Source } from 'react-map-gl/maplibre'
+import MapGL, { Layer, Source } from 'react-map-gl/maplibre'
 // MapLibre finds its worker next to its own module, which bundling moves.
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { FeatureCollection, LineString, Point } from 'geojson'
+import type { ExpressionSpecification } from 'maplibre-gl'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
 
@@ -15,25 +16,26 @@ const CHARLOTTESVILLE = { longitude: -78.49, latitude: 38.037, zoom: 12.3 }
 const FRESH_MS = 45_000
 const STALE_MS = 120_000
 
+function staleness(ageMs: number) {
+  if (ageMs <= FRESH_MS) return 'fresh'
+  if (ageMs <= STALE_MS) return 'aging'
+  return 'stale'
+}
+
 export function TransitMap() {
-  const { newestPositionFixes, routePatterns, busStops, routeStops } = getLiveDb()
-  const { data: patterns } = useLiveQuery((q) => q.from({ p: routePatterns }))
-  const { data: stops } = useLiveQuery((q) => q.from({ s: busStops }))
-  const { data: servedStops } = useLiveQuery((q) => q.from({ rs: routeStops }))
-  const { data: fixes } = useLiveQuery((q) => q.from({ f: newestPositionFixes }))
+  const live = getLiveDb()
+  const { data: busRoutes } = useLiveQuery((q) =>
+    q.from({ r: live.busRoutes }).orderBy(({ r }) => r.id),
+  )
+  const { data: patterns } = useLiveQuery((q) => q.from({ p: live.routePatterns }))
+  const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
+  const { data: servedStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
+  const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const [selectedRoute, setSelectedRoute] = useState<number | null>(null)
   const now = useNow(1000)
 
-  const busRoutes = useMemo(() => {
-    const byId = new globalThis.Map<number, { id: number; name: string; color: string }>()
-    for (const p of patterns) byId.set(p.route_id, { id: p.route_id, name: p.route_name, color: p.color })
-    return [...byId.values()].sort((a, b) => a.id - b.id)
-  }, [patterns])
-
-  const routeColor = useMemo(
-    () => new globalThis.Map(busRoutes.map((r) => [r.id, r.color])),
-    [busRoutes],
-  )
+  const routeColor = useMemo(() => new Map(busRoutes.map((r) => [r.id, r.color])), [busRoutes])
+  const isSelectedRoute: ExpressionSpecification = ['==', ['get', 'route_id'], selectedRoute ?? -1]
 
   const lines = useMemo<FeatureCollection<LineString>>(
     () => ({
@@ -51,7 +53,7 @@ export function TransitMap() {
   )
 
   const selectedStopIds = useMemo(
-    () => new Set(servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id)),
+    () => servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id),
     [servedStops, selectedRoute],
   )
 
@@ -60,11 +62,11 @@ export function TransitMap() {
       type: 'FeatureCollection',
       features: stops.map((s) => ({
         type: 'Feature',
-        properties: { name: s.name, selected: selectedStopIds.has(s.id) },
+        properties: { id: s.id, name: s.name },
         geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
       })),
     }),
-    [stops, selectedStopIds],
+    [stops],
   )
 
   const vehiclePoints: FeatureCollection<Point> = {
@@ -74,8 +76,8 @@ export function TransitMap() {
       return {
         type: 'Feature',
         properties: {
-          color: (f.route_id != null && routeColor.get(f.route_id)) || '#555',
-          staleness: ageMs <= FRESH_MS ? 'fresh' : ageMs <= STALE_MS ? 'aging' : 'stale',
+          color: routeColor.get(f.route_id ?? -1) ?? '#555',
+          staleness: staleness(ageMs),
           dimmed: selectedRoute != null && f.route_id !== selectedRoute,
           label: `${Math.round(ageMs / 1000)}s`,
         },
@@ -87,28 +89,30 @@ export function TransitMap() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-1.5 sm:gap-2">
-        {busRoutes.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            onClick={() => setSelectedRoute(selectedRoute === r.id ? null : r.id)}
-            title={r.name}
-            aria-label={r.name}
-            className="min-w-9 rounded-full border-2 px-2.5 py-0.5 text-sm sm:px-3 sm:py-1"
-            style={{
-              borderColor: r.color,
-              background: selectedRoute === r.id ? r.color : 'white',
-              color: selectedRoute === r.id ? 'white' : 'black',
-            }}
-          >
-            {/* route names start with their number, except "Trolley" */}
-            <span className="sm:hidden">{r.name.split(' ')[0]}</span>
-            <span className="hidden sm:inline">{r.name}</span>
-          </button>
-        ))}
+        {busRoutes.map((r) => {
+          const selected = selectedRoute === r.id
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setSelectedRoute(selected ? null : r.id)}
+              title={r.name}
+              aria-label={r.name}
+              className="min-w-9 rounded-full border-2 px-2.5 py-0.5 text-sm sm:px-3 sm:py-1"
+              style={{
+                borderColor: r.color,
+                background: selected ? r.color : 'white',
+                color: selected ? 'white' : 'black',
+              }}
+            >
+              <span className="sm:hidden">{r.short_name}</span>
+              <span className="hidden sm:inline">{r.name}</span>
+            </button>
+          )
+        })}
       </div>
       <div className="h-[70vh] overflow-hidden rounded-lg border">
-        <Map
+        <MapGL
           initialViewState={CHARLOTTESVILLE}
           mapStyle={MAP_STYLE}
           workerUrl={maplibreWorkerUrl}
@@ -120,11 +124,8 @@ export function TransitMap() {
               layout={{ 'line-join': 'round', 'line-cap': 'round' }}
               paint={{
                 'line-color': ['get', 'color'],
-                'line-width': ['case', ['==', ['get', 'route_id'], selectedRoute ?? -1], 5, 4],
-                'line-opacity':
-                  selectedRoute == null
-                    ? 0.5
-                    : ['case', ['==', ['get', 'route_id'], selectedRoute], 0.9, 0.12],
+                'line-width': ['case', isSelectedRoute, 5, 4],
+                'line-opacity': selectedRoute == null ? 0.5 : ['case', isSelectedRoute, 0.9, 0.12],
               }}
             />
           </Source>
@@ -133,7 +134,11 @@ export function TransitMap() {
               id="bus-stops"
               type="circle"
               minzoom={selectedRoute == null ? 14 : 0}
-              filter={selectedRoute == null ? ['literal', true] : ['get', 'selected']}
+              filter={
+                selectedRoute == null
+                  ? ['literal', true]
+                  : ['in', ['get', 'id'], ['literal', selectedStopIds]]
+              }
               paint={{
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
                 'circle-color': 'white',
@@ -182,7 +187,7 @@ export function TransitMap() {
               paint={{ 'text-color': '#222', 'text-halo-color': 'white', 'text-halo-width': 1.5 }}
             />
           </Source>
-        </Map>
+        </MapGL>
       </div>
     </div>
   )

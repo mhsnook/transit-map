@@ -1,14 +1,15 @@
-import type { WriteEvent } from 'party-db'
+import type { PartyCollection, WriteBatch, WriteEvent } from 'party-db'
 
 // party-db has no upsert, and an update that hits no row fails the whole
 // commit, so ops are chosen against the rows the table holds now. Rows
 // missing from `next` are deleted.
-export function diffOps<T extends Record<string, unknown>>(
+export function syncBatch<T extends Record<string, unknown>>(
+  collection: PartyCollection<T>,
   current: T[],
   next: T[],
-  key: keyof T,
-  changed: (prev: T, row: T) => boolean,
-): WriteEvent<T>[] {
+  changed: (prev: T, row: T) => boolean = anyFieldChanged,
+): WriteBatch<T> {
+  const key = collection.key
   const byKey = new Map(current.map((row) => [row[key], row]))
   const ops: WriteEvent<T>[] = []
   for (const row of next) {
@@ -18,9 +19,9 @@ export function diffOps<T extends Record<string, unknown>>(
     byKey.delete(row[key])
   }
   for (const value of byKey.values()) ops.push({ type: 'delete', value })
-  return ops
+  return { channel: collection.name, ops }
 }
 
-export function anyFieldChanged<T extends Record<string, unknown>>(prev: T, row: T) {
+function anyFieldChanged<T extends Record<string, unknown>>(prev: T, row: T) {
   return Object.keys(row).some((k) => prev[k] !== row[k])
 }

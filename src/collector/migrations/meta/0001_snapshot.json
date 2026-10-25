@@ -1,9 +1,47 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "60632e03-622b-457c-b8d7-f214b382137e",
+  "id": "9886a4b5-a560-4f4f-a52f-49fb4978b557",
   "prevId": "cbbdeb14-2436-48f0-9abe-3f1b9416ae1f",
   "tables": {
+    "bus_routes": {
+      "name": "bus_routes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "bus_stops": {
       "name": "bus_stops",
       "columns": {
@@ -333,13 +371,6 @@
         "route_id": {
           "name": "route_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "route_name": {
-          "name": "route_name",
-          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

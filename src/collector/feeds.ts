@@ -2,8 +2,8 @@ import GtfsRealtimeBindings from 'gtfs-realtime-bindings'
 import { z } from 'zod'
 import type { newestPositionFixes, positionFixes } from './schema'
 
-export const JSON_API_URL =
-  'https://catpublic.etaspot.net/service.php?service=get_vehicles&token=TESTING&includeETAData=1&inService=1&orderedETAArray=1'
+export const JSON_API_BASE = 'https://catpublic.etaspot.net/service.php?token=TESTING&service='
+export const JSON_API_URL = `${JSON_API_BASE}get_vehicles&includeETAData=1&inService=1&orderedETAArray=1`
 export const GTFS_RT_POSITIONS_URL =
   'https://s3.amazonaws.com/etatransit.gtfs/catpublic.etaspot.net/position_updates.pb'
 
