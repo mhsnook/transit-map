@@ -10,6 +10,7 @@
     "enabled": true
   },
   "upload_source_maps": true,
+  "triggers": { "crons": ["* * * * *"] },
   "durable_objects": {
     "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
   },

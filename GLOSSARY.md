@@ -80,6 +80,10 @@ _Avoid_: mismatch, drift, divergence (alone)
 The signed difference between an arrival prediction's time and the observed arrival for the same transit vehicle and bus stop.
 _Avoid_: ETA error, accuracy, error (alone)
 
+**Poll attempt**:
+One request the collector made to the JSON API or the GTFS-RT feed, with its outcome, whether or not it returned new position fixes.
+_Avoid_: request, fetch, poll (alone)
+
 **Monitoring record**:
-The stored history of position fixes, arrival predictions, observed arrivals, position staleness, and datasource divergence that monitoring queries read.
+The stored history of position fixes, arrival predictions, observed arrivals, position staleness, datasource divergence, and poll attempts that monitoring queries read.
 _Avoid_: log, telemetry, history, recording

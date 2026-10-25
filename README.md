@@ -20,7 +20,9 @@ Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Worker
 ## Layout
 
 - `src/server.ts`: the Worker entry. It wraps TanStack Start's handler and exports the Durable Object classes, which Cloudflare requires to be exported from the main module.
-- `src/collector/`: the `Collector` Durable Object, bound as `env.COLLECTOR`.
+- `src/collector/`: the `Collector` Durable Object, bound as `env.COLLECTOR`. It polls the feed vendor every 10 s and keeps the monitoring record. See [`docs/adr/0001-collector-topology.md`](docs/adr/0001-collector-topology.md).
+- `src/collector/schema.ts`: Drizzle tables. After changing them, run `pnpm db:generate` to add a migration; the Collector applies migrations on start.
+- `src/live/`: the party-db collections browsers sync, shared by the Collector and the client.
 - `src/routes/`: TanStack Router file routes.
 - `wrangler.jsonc`: Worker config, bindings and Durable Object migrations.
 
