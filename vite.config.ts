@@ -9,8 +9,13 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  worker: { format: 'es' },
   plugins: [
-    devtools(),
+    devtools({
+      // react-map-gl passes unknown props through to MapLibre, which rejects
+      // the injected data-tsd-source attribute.
+      injectSource: { enabled: true, ignore: { components: ['Map', 'Source', 'Layer'] } },
+    }),
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),
     tanstackStart(),

@@ -1,32 +1,25 @@
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useEffect, useState } from 'react'
+import { TransitMap } from '../components/TransitMap'
+import { useNow } from '../lib/use-now'
 import { getLiveDb } from '../live/db'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   return (
-    <main className="mx-auto max-w-2xl p-8">
+    <main className="mx-auto max-w-5xl p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Transit Map</h1>
-      <p className="mt-2 text-gray-600">
-        Charlottesville Area Transit buses, from each transit vehicle's newest
-        position fix. The map comes next.
+      <p className="mt-2 mb-4 text-gray-600">
+        Charlottesville Area Transit buses at each transit vehicle's newest
+        position fix. The label is the fix's age.
       </p>
       <ClientOnly fallback={<p className="mt-6">Connecting…</p>}>
+        <TransitMap />
         <TransitVehicles />
       </ClientOnly>
     </main>
   )
-}
-
-function useNow(intervalMs: number) {
-  const [now, setNow] = useState(Date.now)
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs)
-    return () => clearInterval(id)
-  }, [intervalMs])
-  return now
 }
 
 function scheduleLabel(minutes: number | null) {

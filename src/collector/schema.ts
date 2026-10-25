@@ -72,3 +72,28 @@ export const pollAttempts = sqliteTable(
   },
   (t) => [index('poll_attempts_started_at').on(t.started_at)],
 )
+
+// Reference data from the JSON API. Bus routes come from route patterns,
+// because get_routes leaves out bus routes that are not running right now.
+
+export const routePatterns = sqliteTable('route_patterns', {
+  id: integer().primaryKey(),
+  name: text().notNull(),
+  route_id: integer().notNull(),
+  route_name: text().notNull(),
+  color: text().notNull(),
+  enc_line: text().notNull(),
+})
+
+export const busStops = sqliteTable('bus_stops', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  lat: real().notNull(),
+  lng: real().notNull(),
+})
+
+export const routeStops = sqliteTable('route_stops', {
+  id: integer().primaryKey(),
+  route_id: integer().notNull(),
+  stop_id: text().notNull(),
+})

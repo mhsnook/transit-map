@@ -3,9 +3,15 @@ import { createPartyDb, partyTransport } from 'party-db/client'
 import {
   COLLECTOR_PARTY,
   COLLECTOR_ROOM,
+  busStopCollection,
   liveCollections,
   newestPositionFixCollection,
+  routePatternCollection,
+  routeStopCollection,
+  type BusStop,
   type NewestPositionFix,
+  type RoutePattern,
+  type RouteStop,
 } from './collections'
 
 let liveDb: ReturnType<typeof connect> | undefined
@@ -18,10 +24,10 @@ function connect() {
   })
   const { db } = createPartyDb(transport, liveCollections)
   return {
-    newestPositionFixes: db[newestPositionFixCollection.name] as Collection<
-      NewestPositionFix,
-      string
-    >,
+    newestPositionFixes: db[newestPositionFixCollection.name] as Collection<NewestPositionFix, string>,
+    routePatterns: db[routePatternCollection.name] as Collection<RoutePattern, number>,
+    busStops: db[busStopCollection.name] as Collection<BusStop, string>,
+    routeStops: db[routeStopCollection.name] as Collection<RouteStop, number>,
   }
 }
 

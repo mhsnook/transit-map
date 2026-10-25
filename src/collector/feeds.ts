@@ -8,7 +8,7 @@ export const GTFS_RT_POSITIONS_URL =
   'https://s3.amazonaws.com/etatransit.gtfs/catpublic.etaspot.net/position_updates.pb'
 
 export type PositionFixRow = typeof positionFixes.$inferInsert
-export type NewestPositionFixRow = typeof newestPositionFixes.$inferInsert
+export type NewestPositionFixRow = typeof newestPositionFixes.$inferSelect
 
 const jsonApiVehicle = z.object({
   equipmentID: z.string(),

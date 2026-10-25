@@ -2,8 +2,14 @@ import { drizzle, type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlit
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import { lt } from 'drizzle-orm'
 import { PartyDbServer } from 'party-db/server'
-import type { WriteEvent } from 'party-db'
-import { liveCollections, newestPositionFixCollection } from '../live/collections'
+import {
+  busStopCollection,
+  liveCollections,
+  newestPositionFixCollection,
+  routePatternCollection,
+  routeStopCollection,
+} from '../live/collections'
+import { anyFieldChanged, diffOps } from './diff'
 import migrations from './migrations/migrations'
 import * as schema from './schema'
 import {
@@ -15,23 +21,26 @@ import {
   type NewestPositionFixRow,
   type PositionFixRow,
 } from './feeds'
+import { PATTERNS_URL, STOPS_URL, parsePatterns, parseStops } from './reference'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
 const RETENTION_MS = 14 * 24 * 60 * 60 * 1000
 const PRUNE_EVERY_MS = 60 * 60 * 1000
+const REFERENCE_EVERY_MS = 60 * 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
   // One hour of ticks. A client away longer gets a fresh snapshot, which is
-  // one row per transit vehicle.
+  // about 120 KB.
   oplogRetention = 360
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
   #lastPrunedAt = 0
+  #referenceRefreshedAt = 0
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -51,7 +60,11 @@ export class Collector extends PartyDbServer<Env> {
     // stop the loop.
     await this.ctx.storage.setAlarm(Date.now() + TICK_MS)
     try {
-      await Promise.all([this.#pollJsonApi(), this.#pollGtfsRt()])
+      await Promise.all([
+        this.#pollJsonApi(),
+        this.#pollGtfsRt(),
+        this.#refreshReferenceIfDue(),
+      ])
       this.#pruneIfDue()
     } catch (error) {
       console.error('collector tick failed', error)
@@ -162,27 +175,56 @@ export class Collector extends PartyDbServer<Env> {
     return inserted
   }
 
-  // Ops are chosen against what the table holds now: deletes need the
-  // transit vehicles that dropped out, unchanged fixes are skipped, and an
-  // update that hits no row would fail the whole commit.
+  // Transit vehicles that leave the feed are deleted; a fix is only written
+  // when it is newer than the one held.
   async #syncNewestFixes(fixes: NewestPositionFixRow[]) {
-    const current = new Map(
-      this.db
-        .select()
-        .from(schema.newestPositionFixes)
-        .all()
-        .map((row) => [row.equipment_id, row]),
+    const ops = diffOps(
+      this.db.select().from(schema.newestPositionFixes).all(),
+      fixes,
+      'equipment_id',
+      (prev, fix) => fix.fix_time > prev.fix_time,
     )
-    const ops: WriteEvent[] = []
-    for (const fix of fixes) {
-      const existing = current.get(fix.equipment_id)
-      if (!existing) ops.push({ type: 'insert', value: fix })
-      else if (fix.fix_time > existing.fix_time) ops.push({ type: 'update', value: fix })
-      current.delete(fix.equipment_id)
-    }
-    for (const value of current.values()) ops.push({ type: 'delete', value })
     if (ops.length === 0) return
     await this.commit([{ channel: newestPositionFixCollection.name, ops }])
+  }
+
+  // Route patterns and bus stops change with the schedule, a few times a
+  // year. A failed refresh is retried on the next tick.
+  async #refreshReferenceIfDue() {
+    if (Date.now() - this.#referenceRefreshedAt < REFERENCE_EVERY_MS) return
+    try {
+      await this.#refreshReference()
+      this.#referenceRefreshedAt = Date.now()
+    } catch (error) {
+      console.error('reference refresh failed', error)
+    }
+  }
+
+  async #refreshReference() {
+    const [patternsBody, stopsBody] = await Promise.all(
+      [PATTERNS_URL, STOPS_URL].map(async (url) => {
+        const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+        if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+        return response.json()
+      }),
+    )
+    const patterns = parsePatterns(patternsBody)
+    const { busStops, routeStops } = parseStops(stopsBody)
+    const batches = [
+      {
+        channel: routePatternCollection.name,
+        ops: diffOps(this.db.select().from(schema.routePatterns).all(), patterns, 'id', anyFieldChanged),
+      },
+      {
+        channel: busStopCollection.name,
+        ops: diffOps(this.db.select().from(schema.busStops).all(), busStops, 'id', anyFieldChanged),
+      },
+      {
+        channel: routeStopCollection.name,
+        ops: diffOps(this.db.select().from(schema.routeStops).all(), routeStops, 'id', anyFieldChanged),
+      },
+    ].filter((batch) => batch.ops.length > 0)
+    if (batches.length > 0) await this.commit(batches)
   }
 
   #pruneIfDue() {
