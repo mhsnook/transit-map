@@ -49,19 +49,14 @@ export function parseJsonApi(
   }))
 }
 
-export function jsonApiHistoryRow(fix: NewestPositionFixRow): PositionFixRow {
-  return {
-    source: 'json_api',
-    equipment_id: fix.equipment_id,
-    fix_time: fix.fix_time,
-    received_at: fix.received_at,
-    lat: fix.lat,
-    lng: fix.lng,
-    heading: fix.heading,
-    trip_id: fix.trip_id,
-    schedule_number: fix.schedule_number,
-    next_stop_id: fix.next_stop_id,
-  }
+export function jsonApiHistoryRow({
+  route_id,
+  pattern_id,
+  at_stop,
+  on_schedule,
+  ...fix
+}: NewestPositionFixRow): PositionFixRow {
+  return { source: 'json_api', ...fix }
 }
 
 const { FeedMessage } = GtfsRealtimeBindings.transit_realtime

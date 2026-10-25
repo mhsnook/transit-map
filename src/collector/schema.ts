@@ -43,8 +43,8 @@ export const positionFixes = sqliteTable(
     next_stop_id: text(),
   },
   (t) => [
-    primaryKey({ columns: [t.source, t.equipment_id, t.fix_time] }),
-    index('position_fixes_fix_time').on(t.fix_time),
+    // fix_time leads so the retention delete can use the primary key
+    primaryKey({ columns: [t.fix_time, t.source, t.equipment_id] }),
   ],
 )
 
@@ -56,12 +56,11 @@ export const pollOutcomes = [
   'network_error',
   'parse_error',
 ] as const
-export type PollOutcome = (typeof pollOutcomes)[number]
 
 export const pollAttempts = sqliteTable(
   'poll_attempts',
   {
-    id: integer().primaryKey({ autoIncrement: true }),
+    id: integer().primaryKey(),
     source: text({ enum: sources }).notNull(),
     started_at: integer().notNull(),
     duration_ms: integer().notNull(),

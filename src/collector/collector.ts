@@ -20,13 +20,14 @@ const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
 const RETENTION_MS = 14 * 24 * 60 * 60 * 1000
 const PRUNE_EVERY_MS = 60 * 60 * 1000
-// Durable Object SQLite allows at most 100 bound parameters per statement
-const HISTORY_ROWS_PER_INSERT = 9
 
-type PollResult = Omit<typeof schema.pollAttempts.$inferInsert, 'id'>
+type PollResult = typeof schema.pollAttempts.$inferInsert
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
+  // One hour of ticks. A client away longer gets a fresh snapshot, which is
+  // one row per transit vehicle.
+  oplogRetention = 360
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
@@ -58,53 +59,66 @@ export class Collector extends PartyDbServer<Env> {
   }
 
   async #pollJsonApi() {
-    const startedAt = Date.now()
-    const result = await this.#fetch('json_api', JSON_API_URL, startedAt, {})
-    if (!result.response) return this.#recordAttempt(result.attempt)
-
-    let fixes: NewestPositionFixRow[]
-    try {
-      const contentType = result.response.headers.get('content-type') ?? ''
-      // unknown services answer 200 with an HTML error page
-      if (!contentType.includes('json')) throw new Error(`content-type ${contentType}`)
-      fixes = parseJsonApi(await result.response.json(), Date.now())
-    } catch (error) {
-      return this.#recordAttempt({ ...result.attempt, outcome: 'parse_error', error: String(error) })
-    }
-
-    const fixesNew = this.#insertHistory(fixes.map(jsonApiHistoryRow))
-    this.#recordAttempt({ ...result.attempt, fixes_seen: fixes.length, fixes_new: fixesNew })
-    await this.#syncNewestFixes(fixes)
+    const polled = await this.#poll(
+      'json_api',
+      JSON_API_URL,
+      {},
+      async (response) => {
+        const contentType = response.headers.get('content-type') ?? ''
+        // unknown services answer 200 with an HTML error page
+        if (!contentType.includes('json')) throw new Error(`content-type ${contentType}`)
+        return parseJsonApi(await response.json(), Date.now())
+      },
+      jsonApiHistoryRow,
+    )
+    if (polled) await this.#syncNewestFixes(polled.rows)
   }
 
   async #pollGtfsRt() {
-    const startedAt = Date.now()
-    const headers: Record<string, string> = this.#gtfsRtEtag
-      ? { 'if-none-match': this.#gtfsRtEtag }
-      : {}
-    const result = await this.#fetch('gtfs_rt', GTFS_RT_POSITIONS_URL, startedAt, headers)
-    if (!result.response) return this.#recordAttempt(result.attempt)
+    const polled = await this.#poll(
+      'gtfs_rt',
+      GTFS_RT_POSITIONS_URL,
+      this.#gtfsRtEtag ? { 'if-none-match': this.#gtfsRtEtag } : {},
+      async (response) =>
+        parseGtfsRtPositions(new Uint8Array(await response.arrayBuffer()), Date.now()),
+      (row) => row,
+    )
+    if (polled) this.#gtfsRtEtag = polled.response.headers.get('etag')
+  }
 
-    let fixes: PositionFixRow[]
-    try {
-      const body = new Uint8Array(await result.response.arrayBuffer())
-      fixes = parseGtfsRtPositions(body, Date.now())
-    } catch (error) {
-      return this.#recordAttempt({ ...result.attempt, outcome: 'parse_error', error: String(error) })
+  // Records the poll attempt and its position fixes. Returns null when there
+  // was nothing to parse or parsing failed.
+  async #poll<T>(
+    source: schema.Source,
+    url: string,
+    headers: Record<string, string>,
+    parse: (response: Response) => Promise<T[]>,
+    toHistory: (row: T) => PositionFixRow,
+  ): Promise<{ response: Response; rows: T[] } | null> {
+    const { attempt, response } = await this.#fetch(source, url, headers)
+    if (!response) {
+      this.#recordAttempt(attempt)
+      return null
     }
-    this.#gtfsRtEtag = result.response.headers.get('etag')
-
-    const fixesNew = this.#insertHistory(fixes)
-    this.#recordAttempt({ ...result.attempt, fixes_seen: fixes.length, fixes_new: fixesNew })
+    let rows: T[]
+    try {
+      rows = await parse(response)
+    } catch (error) {
+      this.#recordAttempt({ ...attempt, outcome: 'parse_error', error: String(error) })
+      return null
+    }
+    const fixesNew = this.#insertHistory(rows.map(toHistory))
+    this.#recordAttempt({ ...attempt, fixes_seen: rows.length, fixes_new: fixesNew })
+    return { response, rows }
   }
 
   // Resolves with a response only for a 2xx; anything else is a finished attempt.
   async #fetch(
     source: schema.Source,
     url: string,
-    startedAt: number,
     headers: Record<string, string>,
   ): Promise<{ attempt: PollResult; response?: Response }> {
+    const startedAt = Date.now()
     const attempt = (fields: Partial<PollResult>): PollResult => ({
       source,
       started_at: startedAt,
@@ -137,10 +151,10 @@ export class Collector extends PartyDbServer<Env> {
   // Returns how many rows were new; a fix served twice is stored once.
   #insertHistory(rows: PositionFixRow[]): number {
     let inserted = 0
-    for (let i = 0; i < rows.length; i += HISTORY_ROWS_PER_INSERT) {
+    for (const row of rows) {
       inserted += this.db
         .insert(schema.positionFixes)
-        .values(rows.slice(i, i + HISTORY_ROWS_PER_INSERT))
+        .values(row)
         .onConflictDoNothing()
         .returning({ fix_time: schema.positionFixes.fix_time })
         .all().length
@@ -148,8 +162,9 @@ export class Collector extends PartyDbServer<Env> {
     return inserted
   }
 
-  // party-db has no upsert, and an update that hits no row fails the whole
-  // commit, so ops are chosen against what the table holds now.
+  // Ops are chosen against what the table holds now: deletes need the
+  // transit vehicles that dropped out, unchanged fixes are skipped, and an
+  // update that hits no row would fail the whole commit.
   async #syncNewestFixes(fixes: NewestPositionFixRow[]) {
     const current = new Map(
       this.db
@@ -165,7 +180,6 @@ export class Collector extends PartyDbServer<Env> {
       else if (fix.fix_time > existing.fix_time) ops.push({ type: 'update', value: fix })
       current.delete(fix.equipment_id)
     }
-    // transit vehicles no longer in service
     for (const value of current.values()) ops.push({ type: 'delete', value })
     if (ops.length === 0) return
     await this.commit([{ channel: newestPositionFixCollection.name, ops }])

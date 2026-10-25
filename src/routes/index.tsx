@@ -29,6 +29,12 @@ function useNow(intervalMs: number) {
   return now
 }
 
+function scheduleLabel(minutes: number | null) {
+  if (minutes == null) return ''
+  if (minutes === 0) return 'on time'
+  return minutes < 0 ? `${-minutes} min late` : `${minutes} min early`
+}
+
 function TransitVehicles() {
   const { newestPositionFixes } = getLiveDb()
   const { data: fixes } = useLiveQuery((q) =>
@@ -60,15 +66,7 @@ function TransitVehicles() {
             <td>{fix.route_id}</td>
             <td>{Math.round((now - fix.fix_time) / 1000)} s</td>
             <td>{fix.at_stop ? 'yes' : ''}</td>
-            <td>
-              {fix.on_schedule == null
-                ? ''
-                : fix.on_schedule < 0
-                  ? `${-fix.on_schedule} min late`
-                  : fix.on_schedule > 0
-                    ? `${fix.on_schedule} min early`
-                    : 'on time'}
-            </td>
+            <td>{scheduleLabel(fix.on_schedule)}</td>
           </tr>
         ))}
       </tbody>

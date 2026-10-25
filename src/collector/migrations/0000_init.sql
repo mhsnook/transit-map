@@ -15,7 +15,7 @@ CREATE TABLE `newest_position_fixes` (
 );
 --> statement-breakpoint
 CREATE TABLE `poll_attempts` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`id` integer PRIMARY KEY NOT NULL,
 	`source` text NOT NULL,
 	`started_at` integer NOT NULL,
 	`duration_ms` integer NOT NULL,
@@ -38,7 +38,5 @@ CREATE TABLE `position_fixes` (
 	`trip_id` text,
 	`schedule_number` text,
 	`next_stop_id` text,
-	PRIMARY KEY(`source`, `equipment_id`, `fix_time`)
+	PRIMARY KEY(`fix_time`, `source`, `equipment_id`)
 );
---> statement-breakpoint
-CREATE INDEX `position_fixes_fix_time` ON `position_fixes` (`fix_time`);

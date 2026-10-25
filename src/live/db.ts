@@ -4,6 +4,7 @@ import {
   COLLECTOR_PARTY,
   COLLECTOR_ROOM,
   liveCollections,
+  newestPositionFixCollection,
   type NewestPositionFix,
 } from './collections'
 
@@ -17,7 +18,7 @@ function connect() {
   })
   const { db } = createPartyDb(transport, liveCollections)
   return {
-    newestPositionFixes: db.newest_position_fixes as Collection<
+    newestPositionFixes: db[newestPositionFixCollection.name] as Collection<
       NewestPositionFix,
       string
     >,

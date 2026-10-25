@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f7c0a554-d082-454f-8dff-9412fce94806",
+  "id": "cbbdeb14-2436-48f0-9abe-3f1b9416ae1f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "newest_position_fixes": {
@@ -113,7 +113,7 @@
           "type": "integer",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": true
+          "autoincrement": false
         },
         "source": {
           "name": "source",
@@ -260,24 +260,16 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "position_fixes_fix_time": {
-          "name": "position_fixes_fix_time",
-          "columns": [
-            "fix_time"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "position_fixes_source_equipment_id_fix_time_pk": {
+        "position_fixes_fix_time_source_equipment_id_pk": {
           "columns": [
+            "fix_time",
             "source",
-            "equipment_id",
-            "fix_time"
+            "equipment_id"
           ],
-          "name": "position_fixes_source_equipment_id_fix_time_pk"
+          "name": "position_fixes_fix_time_source_equipment_id_pk"
         }
       },
       "uniqueConstraints": {},
