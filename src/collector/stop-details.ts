@@ -9,6 +9,8 @@ export type ScheduledCallHistory = {
   scheduled_at: number
   route_id: number
   equipment_id: string
+  // the matched slot (see todays_arrivals in schema.ts); null until observed
+  slot_at: number | null
   // oldest first
   predictions: { made_at: number; predicted_at: number; source: (typeof schema.predictionSources)[number] }[]
   arrivals: { rule: (typeof schema.arrivalRules)[number]; arrived_at: number; distance_m: number }[]
@@ -23,7 +25,7 @@ export function stopSchedule(db: Db, stopId: string): ScheduledStop[] {
 // The bus stop's scheduled calls in the monitoring record.
 export function stopHistory(db: Db, stopId: string): ScheduledCallHistory[] {
   const calls = new Map<string, ScheduledCallHistory>()
-  const callFor = (row: Omit<ScheduledCallHistory, 'predictions' | 'arrivals'>) => {
+  const callFor = (row: Omit<ScheduledCallHistory, 'predictions' | 'arrivals' | 'slot_at'>) => {
     const key = `${row.schedule_number}:${row.pattern_stop_id}:${row.scheduled_at}`
     let call = calls.get(key)
     if (!call) {
@@ -33,6 +35,7 @@ export function stopHistory(db: Db, stopId: string): ScheduledCallHistory[] {
         scheduled_at: row.scheduled_at,
         route_id: row.route_id,
         equipment_id: row.equipment_id,
+        slot_at: null,
         predictions: [],
         arrivals: [],
       }
@@ -61,7 +64,9 @@ export function stopHistory(db: Db, stopId: string): ScheduledCallHistory[] {
     .where(eq(o.stop_id, stopId))
     .orderBy(asc(o.arrived_at))
     .all()) {
-    callFor(row).arrivals.push({ rule: row.rule, arrived_at: row.arrived_at, distance_m: row.distance_m })
+    const call = callFor(row)
+    call.slot_at ??= row.slot_at
+    call.arrivals.push({ rule: row.rule, arrived_at: row.arrived_at, distance_m: row.distance_m })
   }
 
   return [...calls.values()].sort((a, b) => a.scheduled_at - b.scheduled_at)

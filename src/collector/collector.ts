@@ -1,6 +1,6 @@
 import { drizzle, type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
-import { and, desc, eq, lt } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt } from 'drizzle-orm'
 import { PartyDbServer } from 'party-db/server'
 import {
   busRouteCollection,
@@ -11,6 +11,7 @@ import {
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
+  todaysArrivalCollection,
 } from '../live/collections'
 import { ArrivalWatch } from './arrivals'
 import { syncBatch } from './diff'
@@ -48,6 +49,7 @@ import {
   stopEtasUrl,
   type CurrentArrivalPredictionRow,
 } from './predictions'
+import { SlotIndex } from './slots'
 import { stopHistory, stopSchedule } from './stop-details'
 
 const TICK_MS = 10_000
@@ -62,6 +64,8 @@ const STOP_ETAS_EVERY_MS = 10 * 60 * 1000
 const STOP_ETAS_RETRY_MS = 60 * 1000
 // A browser showing a bus stop renews its watch more often than this.
 const STOP_WATCH_MS = 60 * 1000
+const TODAYS_TIMEPOINTS_MS = 20 * 60 * 60 * 1000
+const TODAYS_OTHER_STOPS_MS = 2 * 60 * 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
 type Polled<T> =
@@ -92,6 +96,8 @@ export class Collector extends PartyDbServer<Env> {
   #watchedStops = new Map<string, number>()
   // arrival prediction id -> the last get_vehicles prediction recorded for it
   #recordedPredictions = new Map<string, string>()
+  // built from the schedule on first use; dropped when the schedule changes
+  #slotIndex: SlotIndex | null = null
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -120,7 +126,7 @@ export class Collector extends PartyDbServer<Env> {
         this.#checkScheduleIfDue(),
       ])
       await this.#syncPredictions()
-      this.#pruneIfDue()
+      await this.#pruneIfDue()
     } catch (error) {
       console.error('collector tick failed', error)
     }
@@ -142,7 +148,7 @@ export class Collector extends PartyDbServer<Env> {
     const { fixes, predictions } = polled.value
     // a scheduled call has to be watched before a fix can arrive at it
     this.#arrivals.predicted(predictions, Date.now())
-    this.#recordArrivals(fixes)
+    await this.#recordArrivals(fixes)
     this.#recordVehiclePredictions(predictions)
     this.#vehiclePredictions = predictions
     await this.#syncNewestFixes(fixes)
@@ -298,17 +304,19 @@ export class Collector extends PartyDbServer<Env> {
     if (batch.ops.length > 0) await this.commit([batch])
   }
 
-  // The current_arrival_predictions ops double as the record of when each
-  // arrival prediction was first served or changed.
   // Where both sources predict a scheduled call, get_vehicles wins.
   async #syncPredictions() {
     if (!this.#vehiclePredictions) return
     const rows = new Map(this.#watchedStopPredictions.map((p) => [p.id, p]))
     for (const p of this.#vehiclePredictions) rows.set(p.id, p)
+    const match = this.#slotMatcher()
     const batch = syncBatch(
       currentArrivalPredictionCollection,
       this.db.select().from(schema.currentArrivalPredictions).all(),
-      [...rows.values()],
+      [...rows.values()].map((p) => ({
+        ...p,
+        slot_at: match(p.route_id, p.schedule_number, p.stop_id, p.predicted_at)?.slot_at ?? null,
+      })),
     )
     if (batch.ops.length > 0) await this.commit([batch])
   }
@@ -319,7 +327,7 @@ export class Collector extends PartyDbServer<Env> {
   #recordVehiclePredictions(predictions: CurrentArrivalPredictionRow[]) {
     const madeAt = Date.now()
     const seen = new Set<string>()
-    for (const { id, ...prediction } of predictions) {
+    for (const { id, slot_at: _, ...prediction } of predictions) {
       seen.add(id)
       const signature = `${prediction.predicted_at}|${prediction.scheduled_at}|${prediction.equipment_id}`
       if (this.#recordedPredictions.get(id) === signature) continue
@@ -329,10 +337,59 @@ export class Collector extends PartyDbServer<Env> {
     for (const id of this.#recordedPredictions.keys()) if (!seen.has(id)) this.#recordedPredictions.delete(id)
   }
 
-  #recordArrivals(fixes: NewestPositionFixRow[]) {
+  // Every rule that fires goes to observed_arrivals; the first one for a
+  // scheduled call, which is the earliest, also goes to todays_arrivals.
+  async #recordArrivals(fixes: NewestPositionFixRow[]) {
     const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
+    const match = this.#slotMatcher()
+    const todays = new Map<string, schema.TodaysArrival>()
     for (const arrival of this.#arrivals.observe(fixes, stops)) {
-      this.db.insert(schema.observedArrivals).values(arrival).onConflictDoNothing().run()
+      const slot = match(arrival.route_id, arrival.schedule_number, arrival.stop_id, arrival.arrived_at)
+      this.db
+        .insert(schema.observedArrivals)
+        .values({ ...arrival, slot_at: slot?.slot_at ?? null })
+        .onConflictDoNothing()
+        .run()
+      const id = `${arrival.schedule_number}:${arrival.pattern_stop_id}:${arrival.scheduled_at}`
+      if (todays.has(id)) continue
+      if (this.db.select({ id: schema.todaysArrivals.id }).from(schema.todaysArrivals).where(eq(schema.todaysArrivals.id, id)).get()) continue
+      todays.set(id, {
+        id,
+        schedule_number: arrival.schedule_number,
+        equipment_id: arrival.equipment_id,
+        route_id: arrival.route_id,
+        stop_id: arrival.stop_id,
+        arrived_at: arrival.arrived_at,
+        slot_at: slot?.slot_at ?? null,
+        timepoint: slot?.timepoint ?? false,
+      })
+    }
+    if (todays.size > 0) {
+      await this.commit([
+        { channel: todaysArrivalCollection.name, ops: [...todays.values()].map((value) => ({ type: 'insert', value })) },
+      ])
+    }
+  }
+
+  // Bus routes are matched by short name: the JSON API's route ids are not
+  // the GTFS feed's.
+  #slotMatcher() {
+    this.#slotIndex ??= new SlotIndex(
+      this.db.select().from(schema.scheduledStops).all(),
+      new Map(
+        this.db
+          .selectDistinct({ schedule_number: schema.timetableStops.schedule_number, direction: schema.timetableStops.direction })
+          .from(schema.timetableStops)
+          .all()
+          .filter((t) => t.schedule_number != null)
+          .map((t) => [t.schedule_number!, t.direction]),
+      ),
+    )
+    const index = this.#slotIndex
+    const shortNames = new Map(this.db.select().from(schema.busRoutes).all().map((r) => [r.id, r.short_name]))
+    return (routeId: number, scheduleNumber: string, stopId: string, at: number) => {
+      const route = shortNames.get(routeId)
+      return route == null ? null : index.match(route, scheduleNumber, stopId, at)
     }
   }
 
@@ -392,9 +449,12 @@ export class Collector extends PartyDbServer<Env> {
       .orderBy(desc(schema.scheduleChanges.id))
       .limit(1)
       .get()
-    // An empty timetable needs the file even if it hasn't changed.
-    const timetableEmpty = !this.db.select({ id: schema.timetableStops.id }).from(schema.timetableStops).limit(1).get()
-    this.#gtfsStaticEtag ??= timetableEmpty ? null : (latest?.gtfs_etag ?? null)
+    // An empty or outdated timetable needs the file even if it hasn't changed.
+    const t = schema.timetableStops
+    const timetableStale =
+      !this.db.select({ id: t.id }).from(t).limit(1).get() ||
+      !!this.db.select({ id: t.id }).from(t).where(isNull(t.schedule_number)).limit(1).get()
+    this.#gtfsStaticEtag ??= timetableStale ? null : (latest?.gtfs_etag ?? null)
     const polled = await this.#poll(
       'schedule',
       GTFS_STATIC_URL,
@@ -410,13 +470,17 @@ export class Collector extends PartyDbServer<Env> {
       this.db.select().from(schema.timetableStops).all(),
       schedule.timetableStops,
     )
-    if (timetable.ops.length > 0) await this.commit([timetable])
+    if (timetable.ops.length > 0) {
+      await this.commit([timetable])
+      this.#slotIndex = null
+    }
 
     const versionId = await scheduleVersionId(schedule.scheduledStops)
     if (latest?.to_version_id === versionId && latest.feed_version === schedule.feedVersion) {
       return true
     }
     this.#recordScheduleChange(latest?.to_version_id ?? null, versionId, schedule)
+    this.#slotIndex = null
     return true
   }
 
@@ -473,7 +537,7 @@ export class Collector extends PartyDbServer<Env> {
     }
   }
 
-  #pruneIfDue() {
+  async #pruneIfDue() {
     const now = Date.now()
     if (now - this.#lastPrunedAt < PRUNE_EVERY_MS) return
     this.#lastPrunedAt = now
@@ -482,6 +546,16 @@ export class Collector extends PartyDbServer<Env> {
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
     this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
     this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
+    const expired = this.db
+      .select()
+      .from(schema.todaysArrivals)
+      .all()
+      .filter((a) => a.arrived_at < now - (a.timepoint ? TODAYS_TIMEPOINTS_MS : TODAYS_OTHER_STOPS_MS))
+    if (expired.length > 0) {
+      await this.commit([
+        { channel: todaysArrivalCollection.name, ops: expired.map((value) => ({ type: 'delete', value })) },
+      ])
+    }
   }
 }
 

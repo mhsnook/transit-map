@@ -27,12 +27,16 @@ export function TransitMap({
   onSelectRoute,
   selectedStop,
   onSelectStop,
+  selectedBus,
+  onSelectBus,
   fitPadding,
 }: {
   selectedRoute: number | null
   onSelectRoute: (routeId: number) => void
   selectedStop: string | null
   onSelectStop: (stopId: string) => void
+  selectedBus: string | null
+  onSelectBus: (equipmentId: string) => void
   // keeps a fitted route clear of whatever covers the map, like the drawer
   fitPadding: PaddingOptions
 }) {
@@ -83,20 +87,24 @@ export function TransitMap({
     // fitPadding changes with the drawer; refitting on every drag would fight the user
   }, [selectedRoute, lines])
 
+  // Whether a point is on screen and not under the drawer.
+  const inView = (map: MapRef, lng: number, lat: number) => {
+    const { x, y } = map.project([lng, lat])
+    const { clientWidth, clientHeight } = map.getContainer()
+    return (
+      x >= (fitPadding.left ?? 0) &&
+      x <= clientWidth - (fitPadding.right ?? 0) &&
+      y >= (fitPadding.top ?? 0) &&
+      y <= clientHeight - (fitPadding.bottom ?? 0)
+    )
+  }
+
   // A bus stop picked from the panel may be off screen or under the drawer;
   // one clicked on the map isn't.
   useEffect(() => {
     const map = mapRef.current
     const stop = stops.find((s) => s.id === selectedStop)
-    if (!map || !stop) return
-    const { x, y } = map.project([stop.lng, stop.lat])
-    const { clientWidth, clientHeight } = map.getContainer()
-    const visible =
-      x >= (fitPadding.left ?? 0) &&
-      x <= clientWidth - (fitPadding.right ?? 0) &&
-      y >= (fitPadding.top ?? 0) &&
-      y <= clientHeight - (fitPadding.bottom ?? 0)
-    if (visible) return
+    if (!map || !stop || inView(map, stop.lng, stop.lat)) return
     map.easeTo({
       center: [stop.lng, stop.lat],
       zoom: Math.max(map.getZoom(), 15),
@@ -104,6 +112,26 @@ export function TransitMap({
       duration: 600,
     })
   }, [selectedStop, stops, mapLoaded])
+
+  // Zooms in on a newly selected bus, then follows it only when it leaves the view.
+  const followedBus = useRef<string | null>(null)
+  const selectedFix = fixes.find((f) => f.equipment_id === selectedBus)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !selectedFix) {
+      if (!selectedBus) followedBus.current = null
+      return
+    }
+    const isNew = followedBus.current !== selectedFix.equipment_id
+    if (!isNew && inView(map, selectedFix.lng, selectedFix.lat)) return
+    followedBus.current = selectedFix.equipment_id
+    map.easeTo({
+      center: [selectedFix.lng, selectedFix.lat],
+      zoom: isNew ? Math.max(map.getZoom(), 15) : map.getZoom(),
+      padding: fitPadding,
+      duration: 600,
+    })
+  }, [selectedBus, selectedFix?.lng, selectedFix?.lat, mapLoaded])
 
   const selectedStopIds = useMemo(
     () => servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id),
@@ -132,6 +160,7 @@ export function TransitMap({
       return {
         type: 'Feature',
         properties: {
+          equipment_id: f.equipment_id,
           color: routeColor.get(f.route_id ?? -1) ?? '#555',
           staleness: staleness(ageMs),
           dimmed: selectedRoute != null && f.route_id !== selectedRoute,
@@ -149,13 +178,15 @@ export function TransitMap({
       mapStyle={MAP_STYLE}
       workerUrl={maplibreWorkerUrl}
       onLoad={() => setMapLoaded(true)}
-      interactiveLayerIds={['bus-stop-targets', 'route-pattern-targets']}
+      interactiveLayerIds={['transit-vehicle-targets', 'bus-stop-targets', 'route-pattern-targets']}
       cursor={hovering ? 'pointer' : 'grab'}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       onClick={(event) => {
         const features = event.features ?? []
-        // a bus stop sits on its route patterns' lines and wins over them
+        // buses sit on bus stops and lines, and bus stops on lines; the one on top wins
+        const equipmentId = features.find((f) => f.layer.id === 'transit-vehicle-targets')?.properties?.equipment_id
+        if (typeof equipmentId === 'string') return onSelectBus(equipmentId)
         const stopId = features.find((f) => f.layer.id === 'bus-stop-targets')?.properties?.id
         if (typeof stopId === 'string') return onSelectStop(stopId)
         const routeId = features[0]?.properties?.route_id
@@ -213,6 +244,18 @@ export function TransitMap({
       </Source>
       <Source id="transit-vehicles" type="geojson" data={vehiclePoints}>
         <Layer
+          id="selected-transit-vehicle"
+          type="circle"
+          filter={['==', ['get', 'equipment_id'], selectedBus ?? '']}
+          paint={{
+            'circle-radius': 14,
+            'circle-color': 'white',
+            'circle-opacity': 0.9,
+            'circle-stroke-color': '#111',
+            'circle-stroke-width': 3,
+          }}
+        />
+        <Layer
           id="transit-vehicles"
           type="circle"
           paint={{
@@ -250,6 +293,7 @@ export function TransitMap({
           }}
           paint={{ 'text-color': '#222', 'text-halo-color': 'white', 'text-halo-width': 1.5 }}
         />
+        <Layer id="transit-vehicle-targets" type="circle" paint={{ 'circle-radius': 16, 'circle-opacity': 0 }} />
       </Source>
     </MapGL>
   )

@@ -89,3 +89,9 @@ export function charlottesvilleClockNear(minutesOfDay: number, near: number): nu
 export function charlottesvilleMidnight(at: number): number {
   return Math.floor(at / 60_000) * 60_000 - charlottesvilleMinutes(at) * 60_000
 }
+
+// 0 is Monday, matching the weekday patterns of scheduled stops.
+export function charlottesvilleWeekday(at: number): number {
+  const { year, month, day } = charlottesvilleParts(at)
+  return (new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7
+}

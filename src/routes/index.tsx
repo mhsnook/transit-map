@@ -8,10 +8,12 @@ import { getStopHistory, getStopSchedule } from '../lib/stop-details'
 import { useMediaQuery } from '../lib/use-media-query'
 
 export const Route = createFileRoute('/')({
-  // Bus stop ids are numeric strings; a number keeps the URL as ?stop=16583.
+  // Bus stop and equipment ids are numeric strings; a number keeps the URL as
+  // ?stop=16583 rather than ?stop=%2216583%22.
   validateSearch: z.object({
     stop: z.number().int().optional(),
     history: z.boolean().optional(),
+    bus: z.union([z.number().int(), z.string()]).optional(),
   }),
   loaderDeps: ({ search }) => ({ stop: search.stop }),
   // Not awaited, so the bus stop opens on its live arrival predictions while
@@ -45,15 +47,34 @@ function TransitApp() {
   const [selectedRoute, setSelectedRoute] = useState<number | null>(null)
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const search = Route.useSearch()
-  const [snap, setSnap] = useState<number | string | null>(search.stop == null ? SNAP_PEEK : SNAP_HALF)
+  const [snap, setSnap] = useState<number | string | null>(
+    search.stop == null && search.bus == null ? SNAP_PEEK : SNAP_HALF,
+  )
   const navigate = Route.useNavigate()
   const selectedStop = search.stop == null ? null : String(search.stop)
+  const selectedBus = search.bus == null ? null : String(search.bus)
 
   const selectRoute = (routeId: number | null) => {
     setSelectedRoute(routeId)
+    if (routeId != null && (selectedStop != null || selectedBus != null)) {
+      navigate({ search: (prev) => ({ ...prev, stop: undefined, history: undefined, bus: undefined }) })
+    }
     if (!isDesktop) setSnap(routeId == null ? SNAP_PEEK : SNAP_HALF)
   }
 
+  const selectBus = (equipmentId: string | null) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        stop: undefined,
+        history: undefined,
+        bus: equipmentId == null ? undefined : /^\d+$/.test(equipmentId) ? Number(equipmentId) : equipmentId,
+      }),
+    })
+    if (!isDesktop && equipmentId != null) setSnap(SNAP_HALF)
+  }
+
+  // A bus stop opened from a bus keeps `bus`, so closing the bus stop goes back to it.
   const selectStop = (stopId: string | null) => {
     navigate({
       search: (prev) =>
@@ -68,6 +89,8 @@ function TransitApp() {
       onSelectRoute={selectRoute}
       selectedStop={selectedStop}
       onSelectStop={selectStop}
+      selectedBus={selectedBus}
+      onSelectBus={selectBus}
       title={title}
     />
   )
@@ -78,6 +101,8 @@ function TransitApp() {
       onSelectRoute={selectRoute}
       selectedStop={selectedStop}
       onSelectStop={selectStop}
+      selectedBus={selectedBus}
+      onSelectBus={selectBus}
       fitPadding={
         isDesktop
           ? { top: 48, bottom: 48, left: 48, right: 48 }

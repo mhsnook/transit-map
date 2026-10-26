@@ -2,6 +2,7 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo, useState } from 'react'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
+import { BusPanel } from './BusPanel'
 import { RoutePicker } from './RoutePicker'
 import { RouteSchedule } from './RouteSchedule'
 import { StopList } from './StopList'
@@ -13,12 +14,16 @@ export function InfoPanel({
   onSelectRoute,
   selectedStop,
   onSelectStop,
+  selectedBus,
+  onSelectBus,
   title,
 }: {
   selectedRoute: number | null
   onSelectRoute: (routeId: number | null) => void
   selectedStop: string | null
   onSelectStop: (stopId: string | null) => void
+  selectedBus: string | null
+  onSelectBus: (equipmentId: string | null) => void
   // the drawer passes its accessible Drawer.Title here
   title: React.ReactNode
 }) {
@@ -29,6 +34,7 @@ export function InfoPanel({
   const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const { data: routeStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
+  const { data: todaysArrivals } = useLiveQuery((q) => q.from({ a: live.todaysArrivals }))
   const now = useNow(1000)
   const [homeTab, setHomeTab] = useState<'buses' | 'stops'>('buses')
 
@@ -48,6 +54,14 @@ export function InfoPanel({
     for (const list of byStop.values()) list.sort((a, b) => a.id - b.id)
     return byStop
   }, [routeStops, routesById])
+  const latestArrivals = useMemo(() => {
+    const byBus = new Map<string, (typeof todaysArrivals)[number]>()
+    for (const a of todaysArrivals) {
+      const other = byBus.get(a.equipment_id)
+      if (a.slot_at != null && (!other || a.arrived_at > other.arrived_at)) byBus.set(a.equipment_id, a)
+    }
+    return byBus
+  }, [todaysArrivals])
   const route = selectedRoute == null ? undefined : routesById.get(selectedRoute)
   const stop = selectedStop == null ? undefined : stopsById.get(selectedStop)
   const routeFixes = route ? fixes.filter((f) => f.route_id === route.id) : fixes
@@ -78,6 +92,16 @@ export function InfoPanel({
             routesById={routesById}
             now={now}
             onClose={() => onSelectStop(null)}
+          />
+        ) : selectedBus != null ? (
+          <BusPanel
+            equipmentId={selectedBus}
+            fix={fixes.find((f) => f.equipment_id === selectedBus)}
+            routesById={routesById}
+            stopsById={stopsById}
+            now={now}
+            onSelectStop={onSelectStop}
+            onClose={() => onSelectBus(null)}
           />
         ) : route ? (
           <>
@@ -136,7 +160,13 @@ export function InfoPanel({
             </div>
             {homeTab === 'buses' ? (
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <VehicleList fixes={fixes} routesById={routesById} now={now} />
+                <VehicleList
+                  fixes={fixes}
+                  routesById={routesById}
+                  latestArrivals={latestArrivals}
+                  now={now}
+                  onSelectBus={onSelectBus}
+                />
               </div>
             ) : (
               <StopList stops={stops} routesByStop={routesByStop} onSelectStop={onSelectStop} />

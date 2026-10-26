@@ -66,6 +66,7 @@ function predictionRows(etas: z.infer<typeof eta>[], receivedAt: number): Curren
       predicted_at: predictedAt,
       direction: eta.direction ?? null,
       timepoint: eta.timePoint === 1,
+      slot_at: null,
     })
   }
   return [...rows.values()]

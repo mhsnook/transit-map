@@ -80,6 +80,14 @@ _Avoid_: diff, changeset
 One scheduled trip's stop at one pattern stop on one service day, identified by the schedule number (the feed vendor's `scheduleNumber`, GTFS `trip_short_name`), the pattern stop and the scheduled time. Arrival predictions and observed arrivals are made for a scheduled call.
 _Avoid_: visit, stop time, trip stop
 
+**Matched slot**:
+The scheduled time at a bus stop, for a bus route and direction, that an observed arrival or an arrival prediction served: the latest one up to five minutes after it. Lateness is measured against it rather than against the scheduled trip the feed vendor assigned.
+_Avoid_: slot (alone), scheduled time (for this)
+
+**Skipped trip**:
+A scheduled trip that no transit vehicle reached at any timepoint, while trips before and after it in the same direction were reached. Usually the trip a bus fell a whole headway behind on.
+_Avoid_: dropped trip, missed trip, deadhead (the feed vendor's `deadHead` means driving out of service)
+
 ### Observations
 
 **Position fix**:

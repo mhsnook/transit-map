@@ -11,6 +11,7 @@ import {
   routePatterns,
   routeStops,
   timetableStops,
+  todaysArrivals,
 } from '../collector/schema'
 
 // Browsers only read; the Collector writes through commit(), which skips
@@ -36,6 +37,7 @@ export const busStopCollection = readOnlyCollection(busStops, 'id')
 export const routeStopCollection = readOnlyCollection(routeStops, 'id')
 export const timetableStopCollection = readOnlyCollection(timetableStops, 'id')
 export const currentArrivalPredictionCollection = readOnlyCollection(currentArrivalPredictions, 'id')
+export const todaysArrivalCollection = readOnlyCollection(todaysArrivals, 'id')
 
 export const liveCollections = [
   newestPositionFixCollection,
@@ -45,6 +47,7 @@ export const liveCollections = [
   routeStopCollection,
   timetableStopCollection,
   currentArrivalPredictionCollection,
+  todaysArrivalCollection,
 ]
 
 export const COLLECTOR_PARTY = 'collector'
@@ -55,3 +58,4 @@ export type BusRoute = InferSelectModel<typeof busRoutes>
 export type BusStop = InferSelectModel<typeof busStops>
 export type TimetableStop = InferSelectModel<typeof timetableStops>
 export type CurrentArrivalPrediction = InferSelectModel<typeof currentArrivalPredictions>
+export type TodaysArrival = InferSelectModel<typeof todaysArrivals>
