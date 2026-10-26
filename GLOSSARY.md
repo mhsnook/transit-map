@@ -54,6 +54,10 @@ _Avoid_: run, journey, trip (alone)
 A hold at a terminal bus stop between two scheduled trips, during which the feed vendor already reports the next scheduled trip and its scheduled departure as the next arrival.
 _Avoid_: layover (alone), dwell, break
 
+**Pattern stop**:
+One bus stop's place in a route pattern, the feed vendor's `patternStopID`. A route pattern that passes a bus stop twice has two.
+_Avoid_: route stop, stop sequence
+
 ### Schedule
 
 **Scheduled stop**:
@@ -72,6 +76,10 @@ _Avoid_: update, revision, version bump
 The scheduled stops a schedule change added or removed. A retimed stop is one removed and one added.
 _Avoid_: diff, changeset
 
+**Scheduled call**:
+One scheduled trip's stop at one pattern stop on one service day, identified by the schedule number (the feed vendor's `scheduleNumber`, GTFS `trip_short_name`), the pattern stop and the scheduled time. Arrival predictions and observed arrivals are made for a scheduled call.
+_Avoid_: visit, stop time, trip stop
+
 ### Observations
 
 **Position fix**:
@@ -83,7 +91,7 @@ A feed vendor claim, made at a known time, that a transit vehicle will arrive at
 _Avoid_: ETA (in code), estimate, prediction (alone)
 
 **Observed arrival**:
-The first position fix at which a transit vehicle is judged to have reached a bus stop.
+The first position fix at which a transit vehicle is judged to have reached a bus stop for a scheduled call. Three rules judge it: within 30 m of the bus stop (`distance`), the feed vendor's `atStop` there (`at_stop`), and the feed vendor's last stop reaching it (`passed`); each is recorded.
 _Avoid_: stop event, visit, arrival (alone)
 
 **Position staleness**:

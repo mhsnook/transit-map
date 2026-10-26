@@ -1,11 +1,11 @@
 import { decode } from '@googlemaps/polyline-codec'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import MapGL, { Layer, Source, type MapRef } from 'react-map-gl/maplibre'
 // MapLibre finds its worker next to its own module, which bundling moves.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { FeatureCollection, LineString, Point } from 'geojson'
-import type { ExpressionSpecification, PaddingOptions } from 'maplibre-gl'
+import type { ExpressionSpecification, FilterSpecification, PaddingOptions } from 'maplibre-gl'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
 
@@ -25,10 +25,14 @@ function staleness(ageMs: number) {
 export function TransitMap({
   selectedRoute,
   onSelectRoute,
+  selectedStop,
+  onSelectStop,
   fitPadding,
 }: {
   selectedRoute: number | null
   onSelectRoute: (routeId: number) => void
+  selectedStop: string | null
+  onSelectStop: (stopId: string) => void
   // keeps a fitted route clear of whatever covers the map, like the drawer
   fitPadding: PaddingOptions
 }) {
@@ -40,6 +44,8 @@ export function TransitMap({
   const { data: servedStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const now = useNow(1000)
+  const [hovering, setHovering] = useState(false)
+  const [mapLoaded, setMapLoaded] = useState(false)
 
   const routeColor = useMemo(() => new Map(busRoutes.map((r) => [r.id, r.color])), [busRoutes])
   const isSelectedRoute: ExpressionSpecification = ['==', ['get', 'route_id'], selectedRoute ?? -1]
@@ -77,10 +83,35 @@ export function TransitMap({
     // fitPadding changes with the drawer; refitting on every drag would fight the user
   }, [selectedRoute, lines])
 
+  // A bus stop picked from the panel may be off screen or under the drawer;
+  // one clicked on the map isn't.
+  useEffect(() => {
+    const map = mapRef.current
+    const stop = stops.find((s) => s.id === selectedStop)
+    if (!map || !stop) return
+    const { x, y } = map.project([stop.lng, stop.lat])
+    const { clientWidth, clientHeight } = map.getContainer()
+    const visible =
+      x >= (fitPadding.left ?? 0) &&
+      x <= clientWidth - (fitPadding.right ?? 0) &&
+      y >= (fitPadding.top ?? 0) &&
+      y <= clientHeight - (fitPadding.bottom ?? 0)
+    if (visible) return
+    map.easeTo({
+      center: [stop.lng, stop.lat],
+      zoom: Math.max(map.getZoom(), 15),
+      padding: fitPadding,
+      duration: 600,
+    })
+  }, [selectedStop, stops, mapLoaded])
+
   const selectedStopIds = useMemo(
     () => servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id),
     [servedStops, selectedRoute],
   )
+
+  const stopFilter: FilterSpecification =
+    selectedRoute == null ? ['literal', true] : ['in', ['get', 'id'], ['literal', selectedStopIds]]
 
   const stopPoints = useMemo<FeatureCollection<Point>>(
     () => ({
@@ -117,9 +148,17 @@ export function TransitMap({
       initialViewState={CHARLOTTESVILLE}
       mapStyle={MAP_STYLE}
       workerUrl={maplibreWorkerUrl}
-      interactiveLayerIds={['route-pattern-targets']}
+      onLoad={() => setMapLoaded(true)}
+      interactiveLayerIds={['bus-stop-targets', 'route-pattern-targets']}
+      cursor={hovering ? 'pointer' : 'grab'}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       onClick={(event) => {
-        const routeId = event.features?.[0]?.properties?.route_id
+        const features = event.features ?? []
+        // a bus stop sits on its route patterns' lines and wins over them
+        const stopId = features.find((f) => f.layer.id === 'bus-stop-targets')?.properties?.id
+        if (typeof stopId === 'string') return onSelectStop(stopId)
+        const routeId = features[0]?.properties?.route_id
         if (typeof routeId === 'number') onSelectRoute(routeId)
       }}
     >
@@ -142,19 +181,33 @@ export function TransitMap({
       </Source>
       <Source id="bus-stops" type="geojson" data={stopPoints}>
         <Layer
+          id="bus-stop-targets"
+          type="circle"
+          minzoom={selectedRoute == null ? 14 : 0}
+          filter={stopFilter}
+          paint={{ 'circle-radius': 12, 'circle-opacity': 0 }}
+        />
+        <Layer
           id="bus-stops"
           type="circle"
           minzoom={selectedRoute == null ? 14 : 0}
-          filter={
-            selectedRoute == null
-              ? ['literal', true]
-              : ['in', ['get', 'id'], ['literal', selectedStopIds]]
-          }
+          filter={stopFilter}
           paint={{
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
             'circle-color': 'white',
             'circle-stroke-color': '#444',
             'circle-stroke-width': 1,
+          }}
+        />
+        <Layer
+          id="selected-bus-stop"
+          type="circle"
+          filter={['==', ['get', 'id'], selectedStop ?? '']}
+          paint={{
+            'circle-radius': 8,
+            'circle-color': '#111',
+            'circle-stroke-color': 'white',
+            'circle-stroke-width': 3,
           }}
         />
       </Source>

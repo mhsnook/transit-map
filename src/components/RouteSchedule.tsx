@@ -64,11 +64,13 @@ export function RouteSchedule({
   stopsById,
   fixes,
   now,
+  onSelectStop,
 }: {
   route: BusRoute
   stopsById: Map<string, BusStop>
   fixes: NewestPositionFix[]
   now: number
+  onSelectStop: (stopId: string) => void
 }) {
   const live = getLiveDb()
   const { data: rows } = useLiveQuery(
@@ -155,7 +157,13 @@ export function RouteSchedule({
                     scope="col"
                     className="border-b border-gray-200 px-2 pt-1 pb-2 text-left align-bottom text-[11px] leading-tight font-medium text-gray-600 first:pl-4"
                   >
-                    {stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
+                    <button
+                      type="button"
+                      onClick={() => onSelectStop(c.stopId)}
+                      className="text-left hover:text-gray-900 hover:underline"
+                    >
+                      {stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
+                    </button>
                   </th>
                 ))}
                 {anyLive && (

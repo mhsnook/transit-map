@@ -6,6 +6,7 @@ import {
   COLLECTOR_ROOM,
   busRouteCollection,
   busStopCollection,
+  currentArrivalPredictionCollection,
   liveCollections,
   newestPositionFixCollection,
   routePatternCollection,
@@ -32,6 +33,7 @@ function connect() {
     busStops: typed(busStopCollection),
     routeStops: typed(routeStopCollection),
     timetableStops: typed(timetableStopCollection),
+    currentArrivalPredictions: typed(currentArrivalPredictionCollection),
   }
 }
 

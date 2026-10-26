@@ -1,0 +1,1 @@
+ALTER TABLE `arrival_predictions` ADD `source` text DEFAULT 'get_stop_etas' NOT NULL;

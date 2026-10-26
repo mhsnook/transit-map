@@ -24,6 +24,9 @@ export const newestPositionFixes = sqliteTable('newest_position_fixes', {
   trip_id: text(),
   schedule_number: text(),
   next_stop_id: text(),
+  last_stop_id: text(),
+  last_pattern_stop_id: integer(),
+  // at last_stop_id, not next_stop_id
   at_stop: integer({ mode: 'boolean' }).notNull(),
   // minutes; negative is late
   on_schedule: integer(),
@@ -46,6 +49,8 @@ export const positionFixes = sqliteTable(
     schedule_number: text(),
     next_stop_id: text(),
     // JSON API only; null for the GTFS-RT feed
+    last_stop_id: text(),
+    last_pattern_stop_id: integer(),
     route_id: integer(),
     pattern_id: integer(),
     at_stop: integer({ mode: 'boolean' }),
@@ -68,7 +73,7 @@ export const pollOutcomes = [
   'parse_error',
 ] as const
 
-export const pollSources = [...sources, 'reference', 'schedule'] as const
+export const pollSources = [...sources, 'reference', 'schedule', 'stop_etas', 'watched_stop_etas'] as const
 export type PollSource = (typeof pollSources)[number]
 
 export const pollAttempts = sqliteTable(
@@ -205,3 +210,85 @@ export const timetableStops = sqliteTable('timetable_stops', {
   arrival_time: text().notNull(),
   departure_time: text().notNull(),
 })
+
+// Arrival predictions and observed arrivals are made for a scheduled call:
+// one scheduled trip (schedule_number) at one pattern stop at one scheduled
+// time. The schedule number repeats every service day; scheduled_at doesn't.
+
+const scheduledCallColumns = {
+  schedule_number: text().notNull(),
+  // the feed vendor's patternStopID: a bus stop's place in a route pattern,
+  // so a route pattern that passes a bus stop twice has two
+  pattern_stop_id: integer().notNull(),
+  scheduled_at: integer().notNull(),
+  stop_id: text().notNull(),
+  route_id: integer().notNull(),
+  equipment_id: text().notNull(),
+}
+
+// The arrival predictions get_vehicles serves now, for each transit
+// vehicle's next five bus stops, plus get_stop_etas for the bus stops
+// browsers have open.
+export const currentArrivalPredictions = sqliteTable('current_arrival_predictions', {
+  // `${schedule_number}:${pattern_stop_id}`
+  id: text().primaryKey(),
+  ...scheduledCallColumns,
+  predicted_at: integer().notNull(),
+  // the feed vendor's "Inbound" or "Outbound", not the GTFS direction_id
+  direction: text(),
+  timepoint: integer({ mode: 'boolean' }).notNull(),
+})
+
+export const predictionSources = ['get_vehicles', 'get_stop_etas'] as const
+
+// get_vehicles rows are written when an arrival prediction is first served
+// and each time it changes, from a poll every 10 s, so the newest row made
+// before a moment is the prediction showing then. A restart writes the
+// current ones again. get_stop_etas rows are
+// every arrival prediction in a snapshot taken every ten minutes; a gap
+// between them says nothing about what was showing.
+export const arrivalPredictions = sqliteTable(
+  'arrival_predictions',
+  {
+    id: integer().primaryKey(),
+    // when the collector saw this prediction served
+    made_at: integer().notNull(),
+    // rows recorded before this column existed all came from get_stop_etas
+    source: text({ enum: predictionSources }).notNull().default('get_stop_etas'),
+    ...scheduledCallColumns,
+    predicted_at: integer().notNull(),
+    direction: text(),
+    timepoint: integer({ mode: 'boolean' }).notNull(),
+  },
+  (t) => [
+    index('arrival_predictions_stop').on(t.stop_id, t.scheduled_at),
+    index('arrival_predictions_made_at').on(t.made_at),
+  ],
+)
+
+export const arrivalRules = [
+  // a position fix within ARRIVAL_RADIUS_M of the bus stop
+  'distance',
+  // the feed vendor's atStop at this pattern stop
+  'at_stop',
+  // the feed vendor's lastPatternStopID reached this pattern stop
+  'passed',
+] as const
+
+// One row per rule that fired for a scheduled call, so the rules can be
+// compared. The observed arrival is the earliest of them.
+export const observedArrivals = sqliteTable(
+  'observed_arrivals',
+  {
+    ...scheduledCallColumns,
+    rule: text({ enum: arrivalRules }).notNull(),
+    // the fix_time of the position fix that fired the rule
+    arrived_at: integer().notNull(),
+    distance_m: real().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.schedule_number, t.pattern_stop_id, t.scheduled_at, t.rule] }),
+    index('observed_arrivals_stop').on(t.stop_id, t.scheduled_at),
+    index('observed_arrivals_arrived_at').on(t.arrived_at),
+  ],
+)

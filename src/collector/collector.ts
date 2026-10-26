@@ -5,12 +5,14 @@ import { PartyDbServer } from 'party-db/server'
 import {
   busRouteCollection,
   busStopCollection,
+  currentArrivalPredictionCollection,
   liveCollections,
   newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
 } from '../live/collections'
+import { ArrivalWatch } from './arrivals'
 import { syncBatch } from './diff'
 import migrations from './migrations/migrations'
 import * as schema from './schema'
@@ -40,6 +42,13 @@ import {
   type PublishedSchedule,
   type ScheduledStop,
 } from './schedule'
+import {
+  parseStopEtas,
+  parseVehicleEtas,
+  stopEtasUrl,
+  type CurrentArrivalPredictionRow,
+} from './predictions'
+import { stopHistory, stopSchedule } from './stop-details'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
@@ -49,6 +58,10 @@ const REFERENCE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_RETRY_MS = 60 * 1000
 const SCHEDULE_EVERY_MS = 60 * 60 * 1000
 const SCHEDULE_RETRY_MS = 10 * 60 * 1000
+const STOP_ETAS_EVERY_MS = 10 * 60 * 1000
+const STOP_ETAS_RETRY_MS = 60 * 1000
+// A browser showing a bus stop renews its watch more often than this.
+const STOP_WATCH_MS = 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
 type Polled<T> =
@@ -57,17 +70,28 @@ type Polled<T> =
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
-  // Five minutes of ticks. Each tick's batch carries every moving transit
-  // vehicle, so replaying more than this costs more than the ~120 KB fresh
-  // snapshot a client gets instead.
-  oplogRetention = 30
+  // Five minutes of ticks, at one batch each for position fixes and arrival
+  // predictions. Each position fix batch carries every moving transit
+  // vehicle, so replaying more than this costs more than the fresh snapshot
+  // a client gets instead.
+  oplogRetention = 60
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
   #lastPrunedAt = 0
   #referenceDueAt = 0
   #scheduleDueAt = 0
+  #stopEtasDueAt = 0
   #gtfsStaticEtag: string | null | undefined
+  #arrivals = new ArrivalWatch()
+  // null until the first get_vehicles poll after a start, so a failed poll
+  // doesn't empty current_arrival_predictions
+  #vehiclePredictions: CurrentArrivalPredictionRow[] | null = null
+  #watchedStopPredictions: CurrentArrivalPredictionRow[] = []
+  // bus stop id -> when a browser last asked to watch it
+  #watchedStops = new Map<string, number>()
+  // arrival prediction id -> the last get_vehicles prediction recorded for it
+  #recordedPredictions = new Map<string, string>()
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -89,10 +113,13 @@ export class Collector extends PartyDbServer<Env> {
     try {
       await Promise.all([
         this.#pollJsonApi(),
+        this.#pollWatchedStops(),
         this.#pollGtfsRt(),
+        this.#snapshotStopEtasIfDue(),
         this.#refreshReferenceIfDue(),
         this.#checkScheduleIfDue(),
       ])
+      await this.#syncPredictions()
       this.#pruneIfDue()
     } catch (error) {
       console.error('collector tick failed', error)
@@ -104,10 +131,48 @@ export class Collector extends PartyDbServer<Env> {
       'json_api',
       JSON_API_URL,
       {},
-      async (response) => parseJsonApi(await readJson(response), Date.now()),
-      (fixes) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
+      async (response) => {
+        const body = await readJson(response)
+        const receivedAt = Date.now()
+        return { fixes: parseJsonApi(body, receivedAt), predictions: parseVehicleEtas(body, receivedAt) }
+      },
+      ({ fixes }) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
     )
-    if (polled.ok) await this.#syncNewestFixes(polled.value)
+    if (!polled.ok) return
+    const { fixes, predictions } = polled.value
+    // a scheduled call has to be watched before a fix can arrive at it
+    this.#arrivals.predicted(predictions, Date.now())
+    this.#recordArrivals(fixes)
+    this.#recordVehiclePredictions(predictions)
+    this.#vehiclePredictions = predictions
+    await this.#syncNewestFixes(fixes)
+  }
+
+  // get_vehicles only predicts each transit vehicle's next five bus stops,
+  // a few minutes out; a bus stop someone has open gets the feed vendor's
+  // full list for it, as the vendor site does.
+  async #pollWatchedStops() {
+    const now = Date.now()
+    for (const [stopId, at] of this.#watchedStops) {
+      if (now - at > STOP_WATCH_MS) this.#watchedStops.delete(stopId)
+    }
+    if (this.#watchedStops.size === 0) {
+      this.#watchedStopPredictions = []
+      return
+    }
+    const polled = await this.#poll(
+      'watched_stop_etas',
+      stopEtasUrl([...this.#watchedStops.keys()]),
+      {},
+      async (response) => parseStopEtas(await readJson(response), Date.now()),
+    )
+    this.#watchedStopPredictions = polled.ok ? polled.value : []
+  }
+
+  // RPC: a browser showing this bus stop calls it at least once a minute.
+  watchStop(stopId: string) {
+    const known = this.db.select({ id: schema.busStops.id }).from(schema.busStops).where(eq(schema.busStops.id, stopId)).get()
+    if (known) this.#watchedStops.set(stopId, Date.now())
   }
 
   async #pollGtfsRt() {
@@ -120,6 +185,31 @@ export class Collector extends PartyDbServer<Env> {
       (fixes) => this.#storeFixes(fixes),
     )
     if (polled.ok) this.#gtfsRtEtag = polled.response.headers.get('etag')
+  }
+
+  // Every arrival prediction for every bus stop, up to ~80 minutes out. The
+  // live ones come from get_vehicles; this is a sample of longer lead times
+  // for prediction error, so it is taken rarely and not while nothing runs.
+  async #snapshotStopEtasIfDue() {
+    const now = Date.now()
+    if (now < this.#stopEtasDueAt) return
+    const running = this.db.select({ id: schema.newestPositionFixes.equipment_id }).from(schema.newestPositionFixes).limit(1).get()
+    const stopIds = this.db.select({ id: schema.busStops.id }).from(schema.busStops).all()
+    if (!running || stopIds.length === 0) return
+    const polled = await this.#poll(
+      'stop_etas',
+      stopEtasUrl(stopIds.map((s) => s.id)),
+      {},
+      async (response) => parseStopEtas(await readJson(response), Date.now()),
+    )
+    this.#stopEtasDueAt = now + (polled.ok ? STOP_ETAS_EVERY_MS : STOP_ETAS_RETRY_MS)
+    if (!polled.ok) return
+    for (const { id: _, ...prediction } of polled.value) {
+      this.db
+        .insert(schema.arrivalPredictions)
+        .values({ made_at: now, source: 'get_stop_etas', ...prediction })
+        .run()
+    }
   }
 
   // Records the poll attempt, plus whatever `store` reports.
@@ -206,6 +296,53 @@ export class Collector extends PartyDbServer<Env> {
       (prev, fix) => fix.fix_time > prev.fix_time,
     )
     if (batch.ops.length > 0) await this.commit([batch])
+  }
+
+  // The current_arrival_predictions ops double as the record of when each
+  // arrival prediction was first served or changed.
+  // Where both sources predict a scheduled call, get_vehicles wins.
+  async #syncPredictions() {
+    if (!this.#vehiclePredictions) return
+    const rows = new Map(this.#watchedStopPredictions.map((p) => [p.id, p]))
+    for (const p of this.#vehiclePredictions) rows.set(p.id, p)
+    const batch = syncBatch(
+      currentArrivalPredictionCollection,
+      this.db.select().from(schema.currentArrivalPredictions).all(),
+      [...rows.values()],
+    )
+    if (batch.ops.length > 0) await this.commit([batch])
+  }
+
+  // Each get_vehicles arrival prediction is recorded when first served and
+  // when it changes. Watched bus stops are not recorded: they are sampled
+  // only while someone looks.
+  #recordVehiclePredictions(predictions: CurrentArrivalPredictionRow[]) {
+    const madeAt = Date.now()
+    const seen = new Set<string>()
+    for (const { id, ...prediction } of predictions) {
+      seen.add(id)
+      const signature = `${prediction.predicted_at}|${prediction.scheduled_at}|${prediction.equipment_id}`
+      if (this.#recordedPredictions.get(id) === signature) continue
+      this.#recordedPredictions.set(id, signature)
+      this.db.insert(schema.arrivalPredictions).values({ made_at: madeAt, source: 'get_vehicles', ...prediction }).run()
+    }
+    for (const id of this.#recordedPredictions.keys()) if (!seen.has(id)) this.#recordedPredictions.delete(id)
+  }
+
+  #recordArrivals(fixes: NewestPositionFixRow[]) {
+    const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
+    for (const arrival of this.#arrivals.observe(fixes, stops)) {
+      this.db.insert(schema.observedArrivals).values(arrival).onConflictDoNothing().run()
+    }
+  }
+
+  // RPCs for the stop view.
+  stopSchedule(stopId: string) {
+    return stopSchedule(this.db, stopId)
+  }
+
+  stopHistory(stopId: string) {
+    return stopHistory(this.db, stopId)
   }
 
   // Bus routes, route patterns and bus stops change with the schedule, a few
@@ -343,6 +480,8 @@ export class Collector extends PartyDbServer<Env> {
     const cutoff = now - RETENTION_MS
     this.db.delete(schema.positionFixes).where(lt(schema.positionFixes.fix_time, cutoff)).run()
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
+    this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
+    this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
   }
 }
 

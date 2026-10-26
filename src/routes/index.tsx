@@ -1,11 +1,30 @@
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Drawer } from 'vaul'
+import { z } from 'zod'
 import { InfoPanel } from '../components/InfoPanel'
 import { TransitMap } from '../components/TransitMap'
+import { getStopHistory, getStopSchedule } from '../lib/stop-details'
 import { useMediaQuery } from '../lib/use-media-query'
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/')({
+  // Bus stop ids are numeric strings; a number keeps the URL as ?stop=16583.
+  validateSearch: z.object({
+    stop: z.number().int().optional(),
+    history: z.boolean().optional(),
+  }),
+  loaderDeps: ({ search }) => ({ stop: search.stop }),
+  // Not awaited, so the bus stop opens on its live arrival predictions while
+  // these load. History loads whether or not it is shown, so showing it
+  // doesn't wait.
+  loader: ({ deps }) => {
+    if (deps.stop == null) return { schedule: null, history: null }
+    const data = { stopId: String(deps.stop) }
+    return { schedule: getStopSchedule({ data }), history: getStopHistory({ data }) }
+  },
+  staleTime: 5 * 60_000,
+  component: Home,
+})
 
 const TITLE_CLASS = 'text-base font-bold tracking-tight'
 const SNAP_PEEK = '164px'
@@ -25,17 +44,40 @@ function Home() {
 function TransitApp() {
   const [selectedRoute, setSelectedRoute] = useState<number | null>(null)
   const isDesktop = useMediaQuery('(min-width: 1024px)')
-  const [snap, setSnap] = useState<number | string | null>(SNAP_PEEK)
+  const search = Route.useSearch()
+  const [snap, setSnap] = useState<number | string | null>(search.stop == null ? SNAP_PEEK : SNAP_HALF)
+  const navigate = Route.useNavigate()
+  const selectedStop = search.stop == null ? null : String(search.stop)
 
   const selectRoute = (routeId: number | null) => {
     setSelectedRoute(routeId)
     if (!isDesktop) setSnap(routeId == null ? SNAP_PEEK : SNAP_HALF)
   }
 
+  const selectStop = (stopId: string | null) => {
+    navigate({
+      search: (prev) =>
+        stopId == null ? { ...prev, stop: undefined, history: undefined } : { ...prev, stop: Number(stopId) },
+    })
+    if (!isDesktop && stopId != null) setSnap(SNAP_HALF)
+  }
+
+  const panel = (title: React.ReactNode) => (
+    <InfoPanel
+      selectedRoute={selectedRoute}
+      onSelectRoute={selectRoute}
+      selectedStop={selectedStop}
+      onSelectStop={selectStop}
+      title={title}
+    />
+  )
+
   const map = (
     <TransitMap
       selectedRoute={selectedRoute}
       onSelectRoute={selectRoute}
+      selectedStop={selectedStop}
+      onSelectStop={selectStop}
       fitPadding={
         isDesktop
           ? { top: 48, bottom: 48, left: 48, right: 48 }
@@ -49,11 +91,7 @@ function TransitApp() {
       <div className="flex h-full">
         <div className="relative min-w-0 flex-1">{map}</div>
         <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-gray-200 bg-white pt-4">
-          <InfoPanel
-            selectedRoute={selectedRoute}
-            onSelectRoute={selectRoute}
-            title={<h1 className={TITLE_CLASS}>Charlottesville buses</h1>}
-          />
+          {panel(<h1 className={TITLE_CLASS}>Charlottesville buses</h1>)}
         </aside>
       </div>
     )
@@ -76,11 +114,7 @@ function TransitApp() {
             className="fixed inset-x-0 bottom-0 z-20 flex h-[94dvh] flex-col rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)] outline-none"
           >
             <Drawer.Handle className="mt-2 mb-2" />
-            <InfoPanel
-              selectedRoute={selectedRoute}
-              onSelectRoute={selectRoute}
-              title={<Drawer.Title className={TITLE_CLASS}>Charlottesville buses</Drawer.Title>}
-            />
+            {panel(<Drawer.Title className={TITLE_CLASS}>Charlottesville buses</Drawer.Title>)}
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>

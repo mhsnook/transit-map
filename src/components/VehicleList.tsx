@@ -1,5 +1,6 @@
 import type { BusRoute, NewestPositionFix } from '../live/collections'
 import { scheduleLabel } from '../lib/schedule-label'
+import { RouteChip } from './RouteChip'
 
 export function VehicleList({
   fixes,
@@ -22,12 +23,7 @@ export function VehicleList({
         const route = fix.route_id == null ? undefined : routesById.get(fix.route_id)
         return (
           <li key={fix.equipment_id} className="flex items-center gap-3 px-4 py-2 text-sm">
-            <span
-              className="grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold text-white"
-              style={{ background: route?.color ?? '#555' }}
-            >
-              {route?.short_name ?? '?'}
-            </span>
+            <RouteChip route={route} />
             <span className="min-w-0 flex-1">
               <span className="font-medium">Bus {fix.equipment_id}</span>
               <span className="block truncate text-xs text-gray-500">
