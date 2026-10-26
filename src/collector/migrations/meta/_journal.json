@@ -29,6 +29,13 @@
       "when": 1792987397129,
       "tag": "0003_fix_details_and_timetable",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793024513402,
+      "tag": "0004_arrival_predictions",
+      "breakpoints": true
     }
   ]
 }

@@ -5,12 +5,14 @@ import { PartyDbServer } from 'party-db/server'
 import {
   busRouteCollection,
   busStopCollection,
+  currentArrivalPredictionCollection,
   liveCollections,
   newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
 } from '../live/collections'
+import { ArrivalWatch } from './arrivals'
 import { syncBatch } from './diff'
 import migrations from './migrations/migrations'
 import * as schema from './schema'
@@ -40,6 +42,8 @@ import {
   type PublishedSchedule,
   type ScheduledStop,
 } from './schedule'
+import { parseStopEtas, stopEtasUrl, type CurrentArrivalPredictionRow } from './predictions'
+import { stopHistory, stopSchedule } from './stop-details'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
@@ -57,10 +61,11 @@ type Polled<T> =
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
-  // Five minutes of ticks. Each tick's batch carries every moving transit
-  // vehicle, so replaying more than this costs more than the ~120 KB fresh
-  // snapshot a client gets instead.
-  oplogRetention = 30
+  // Five minutes of ticks, at one batch each for position fixes and arrival
+  // predictions. Each position fix batch carries every moving transit
+  // vehicle, so replaying more than this costs more than the fresh snapshot
+  // a client gets instead.
+  oplogRetention = 60
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
@@ -68,6 +73,7 @@ export class Collector extends PartyDbServer<Env> {
   #referenceDueAt = 0
   #scheduleDueAt = 0
   #gtfsStaticEtag: string | null | undefined
+  #arrivals = new ArrivalWatch()
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -90,6 +96,7 @@ export class Collector extends PartyDbServer<Env> {
       await Promise.all([
         this.#pollJsonApi(),
         this.#pollGtfsRt(),
+        this.#pollStopEtas(),
         this.#refreshReferenceIfDue(),
         this.#checkScheduleIfDue(),
       ])
@@ -107,7 +114,9 @@ export class Collector extends PartyDbServer<Env> {
       async (response) => parseJsonApi(await readJson(response), Date.now()),
       (fixes) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
     )
-    if (polled.ok) await this.#syncNewestFixes(polled.value)
+    if (!polled.ok) return
+    this.#recordArrivals(polled.value)
+    await this.#syncNewestFixes(polled.value)
   }
 
   async #pollGtfsRt() {
@@ -120,6 +129,20 @@ export class Collector extends PartyDbServer<Env> {
       (fixes) => this.#storeFixes(fixes),
     )
     if (polled.ok) this.#gtfsRtEtag = polled.response.headers.get('etag')
+  }
+
+  async #pollStopEtas() {
+    const stopIds = this.db.select({ id: schema.busStops.id }).from(schema.busStops).all()
+    if (stopIds.length === 0) return
+    const polled = await this.#poll(
+      'stop_etas',
+      stopEtasUrl(stopIds.map((s) => s.id)),
+      {},
+      async (response) => parseStopEtas(await readJson(response), Date.now()),
+    )
+    if (!polled.ok) return
+    this.#arrivals.predicted(polled.value, Date.now())
+    await this.#syncPredictions(polled.value)
   }
 
   // Records the poll attempt, plus whatever `store` reports.
@@ -206,6 +229,40 @@ export class Collector extends PartyDbServer<Env> {
       (prev, fix) => fix.fix_time > prev.fix_time,
     )
     if (batch.ops.length > 0) await this.commit([batch])
+  }
+
+  // The current_arrival_predictions ops double as the record of when each
+  // arrival prediction was first served or changed.
+  async #syncPredictions(predictions: CurrentArrivalPredictionRow[]) {
+    const batch = syncBatch(
+      currentArrivalPredictionCollection,
+      this.db.select().from(schema.currentArrivalPredictions).all(),
+      predictions,
+    )
+    if (batch.ops.length === 0) return
+    const madeAt = Date.now()
+    for (const op of batch.ops) {
+      if (op.type === 'delete') continue
+      const { id: _, ...prediction } = op.value
+      this.db.insert(schema.arrivalPredictions).values({ made_at: madeAt, ...prediction }).run()
+    }
+    await this.commit([batch])
+  }
+
+  #recordArrivals(fixes: NewestPositionFixRow[]) {
+    const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
+    for (const arrival of this.#arrivals.observe(fixes, stops)) {
+      this.db.insert(schema.observedArrivals).values(arrival).onConflictDoNothing().run()
+    }
+  }
+
+  // RPCs for the stop view.
+  stopSchedule(stopId: string) {
+    return stopSchedule(this.db, stopId)
+  }
+
+  stopHistory(stopId: string) {
+    return stopHistory(this.db, stopId)
   }
 
   // Bus routes, route patterns and bus stops change with the schedule, a few
@@ -343,6 +400,8 @@ export class Collector extends PartyDbServer<Env> {
     const cutoff = now - RETENTION_MS
     this.db.delete(schema.positionFixes).where(lt(schema.positionFixes.fix_time, cutoff)).run()
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
+    this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
+    this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
   }
 }
 

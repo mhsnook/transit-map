@@ -6,6 +6,7 @@ import { createSelectSchema } from 'drizzle-zod'
 import {
   busRoutes,
   busStops,
+  currentArrivalPredictions,
   newestPositionFixes,
   routePatterns,
   routeStops,
@@ -34,6 +35,7 @@ export const routePatternCollection = readOnlyCollection(routePatterns, 'id')
 export const busStopCollection = readOnlyCollection(busStops, 'id')
 export const routeStopCollection = readOnlyCollection(routeStops, 'id')
 export const timetableStopCollection = readOnlyCollection(timetableStops, 'id')
+export const currentArrivalPredictionCollection = readOnlyCollection(currentArrivalPredictions, 'id')
 
 export const liveCollections = [
   newestPositionFixCollection,
@@ -42,6 +44,7 @@ export const liveCollections = [
   busStopCollection,
   routeStopCollection,
   timetableStopCollection,
+  currentArrivalPredictionCollection,
 ]
 
 export const COLLECTOR_PARTY = 'collector'
@@ -51,3 +54,4 @@ export type NewestPositionFix = InferSelectModel<typeof newestPositionFixes>
 export type BusRoute = InferSelectModel<typeof busRoutes>
 export type BusStop = InferSelectModel<typeof busStops>
 export type TimetableStop = InferSelectModel<typeof timetableStops>
+export type CurrentArrivalPrediction = InferSelectModel<typeof currentArrivalPredictions>

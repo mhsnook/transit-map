@@ -55,8 +55,37 @@ export function gtfsMinutes(time: string): number {
 }
 
 export function formatGtfsTime(time: string): string {
-  const total = gtfsMinutes(time)
+  return formatMinutes(gtfsMinutes(time))
+}
+
+export function formatClockAt(at: number): string {
+  return formatMinutes(charlottesvilleMinutes(at))
+}
+
+export function formatMinutes(total: number): string {
   const hours = Math.floor(total / 60) % 24
   const minutes = String(total % 60).padStart(2, '0')
   return `${hours % 12 || 12}:${minutes}${hours < 12 ? 'a' : 'p'}`
+}
+
+// The feed vendor's clock times, like "10:41AM".
+export function clockMinutes(clock: string): number {
+  const match = /^(\d{1,2}):(\d{2})\s*([AP])M$/i.exec(clock.trim())
+  if (!match) throw new Error(`not a clock time: ${clock}`)
+  const hours = (Number(match[1]) % 12) + (match[3].toUpperCase() === 'P' ? 12 : 0)
+  return hours * 60 + Number(match[2])
+}
+
+// The instant within twelve hours of `near` at which Charlottesville's clock
+// reads `minutesOfDay`. Off by an hour across a DST change.
+export function charlottesvilleClockNear(minutesOfDay: number, near: number): number {
+  let delta = minutesOfDay - charlottesvilleMinutes(near)
+  if (delta > 720) delta -= 1440
+  if (delta < -720) delta += 1440
+  return Math.floor(near / 60_000) * 60_000 + delta * 60_000
+}
+
+// Midnight in Charlottesville on the day of `at`. Off by an hour across a DST change.
+export function charlottesvilleMidnight(at: number): number {
+  return Math.floor(at / 60_000) * 60_000 - charlottesvilleMinutes(at) * 60_000
 }

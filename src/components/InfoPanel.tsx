@@ -1,18 +1,24 @@
 import { useLiveQuery } from '@tanstack/react-db'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
 import { RoutePicker } from './RoutePicker'
 import { RouteSchedule } from './RouteSchedule'
+import { StopList } from './StopList'
+import { StopPanel } from './StopPanel'
 import { VehicleList } from './VehicleList'
 
 export function InfoPanel({
   selectedRoute,
   onSelectRoute,
+  selectedStop,
+  onSelectStop,
   title,
 }: {
   selectedRoute: number | null
   onSelectRoute: (routeId: number | null) => void
+  selectedStop: string | null
+  onSelectStop: (stopId: string | null) => void
   // the drawer passes its accessible Drawer.Title here
   title: React.ReactNode
 }) {
@@ -22,7 +28,9 @@ export function InfoPanel({
   )
   const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
+  const { data: routeStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
   const now = useNow(1000)
+  const [homeTab, setHomeTab] = useState<'buses' | 'stops'>('buses')
 
   const routesById = useMemo(() => new Map(busRoutes.map((r) => [r.id, r])), [busRoutes])
   const stopsById = useMemo(() => new Map(stops.map((s) => [s.id, s])), [stops])
@@ -31,7 +39,17 @@ export function InfoPanel({
     for (const f of fixes) if (f.route_id != null) counts.set(f.route_id, (counts.get(f.route_id) ?? 0) + 1)
     return counts
   }, [fixes])
+  const routesByStop = useMemo(() => {
+    const byStop = new Map<string, typeof busRoutes>()
+    for (const rs of routeStops) {
+      const r = routesById.get(rs.route_id)
+      if (r) byStop.set(rs.stop_id, [...(byStop.get(rs.stop_id) ?? []), r])
+    }
+    for (const list of byStop.values()) list.sort((a, b) => a.id - b.id)
+    return byStop
+  }, [routeStops, routesById])
   const route = selectedRoute == null ? undefined : routesById.get(selectedRoute)
+  const stop = selectedStop == null ? undefined : stopsById.get(selectedStop)
   const routeFixes = route ? fixes.filter((f) => f.route_id === route.id) : fixes
 
   return (
@@ -52,7 +70,16 @@ export function InfoPanel({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col border-t border-gray-200">
-        {route ? (
+        {selectedStop != null ? (
+          <StopPanel
+            stopId={selectedStop}
+            stop={stop}
+            routes={routesByStop.get(selectedStop) ?? []}
+            routesById={routesById}
+            now={now}
+            onClose={() => onSelectStop(null)}
+          />
+        ) : route ? (
           <>
             <div className="flex items-center gap-3 px-4 pt-3">
               <span
@@ -78,14 +105,42 @@ export function InfoPanel({
                 ✕
               </button>
             </div>
-            <RouteSchedule route={route} stopsById={stopsById} fixes={routeFixes} now={now} />
+            <RouteSchedule
+              route={route}
+              stopsById={stopsById}
+              fixes={routeFixes}
+              now={now}
+              onSelectStop={onSelectStop}
+            />
           </>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <p className="px-4 pt-3 pb-1 text-xs font-medium tracking-wide text-gray-500 uppercase">
-              Running now
-            </p>
-            <VehicleList fixes={fixes} routesById={routesById} now={now} />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div role="tablist" className="mx-4 mt-3 mb-1 flex h-9 shrink-0 rounded-lg bg-gray-100 p-0.5 text-sm">
+              {(
+                [
+                  ['buses', 'Running now'],
+                  ['stops', 'Bus stops'],
+                ] as const
+              ).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={homeTab === tab}
+                  onClick={() => setHomeTab(tab)}
+                  className={`flex-1 rounded-md font-medium ${homeTab === tab ? 'bg-white shadow-sm' : 'text-gray-600'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {homeTab === 'buses' ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <VehicleList fixes={fixes} routesById={routesById} now={now} />
+              </div>
+            ) : (
+              <StopList stops={stops} routesByStop={routesByStop} onSelectStop={onSelectStop} />
+            )}
           </div>
         )}
       </div>
