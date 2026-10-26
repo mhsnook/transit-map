@@ -25,7 +25,11 @@ export const newestPositionFixes = sqliteTable('newest_position_fixes', {
   schedule_number: text(),
   next_stop_id: text(),
   at_stop: integer({ mode: 'boolean' }).notNull(),
+  // minutes; negative is late
   on_schedule: integer(),
+  // passengers aboard and seats, as the feed vendor reports them
+  load: integer(),
+  capacity: integer(),
 })
 
 export const positionFixes = sqliteTable(
@@ -41,6 +45,13 @@ export const positionFixes = sqliteTable(
     trip_id: text(),
     schedule_number: text(),
     next_stop_id: text(),
+    // JSON API only; null for the GTFS-RT feed
+    route_id: integer(),
+    pattern_id: integer(),
+    at_stop: integer({ mode: 'boolean' }),
+    on_schedule: integer(),
+    load: integer(),
+    capacity: integer(),
   },
   (t) => [
     // fix_time leads so the retention delete can use the primary key
@@ -177,3 +188,20 @@ export const scheduleDeltas = sqliteTable(
     }),
   ],
 )
+
+// The current schedule's timepoint stops, trip by trip, for showing
+// timetables. Unlike scheduled stops this keeps trips and stop order, and is
+// replaced rather than versioned.
+export const timetableStops = sqliteTable('timetable_stops', {
+  // `${trip_id}:${stop_sequence}`
+  id: text().primaryKey(),
+  trip_id: text().notNull(),
+  route: text().notNull(),
+  days: text().notNull(),
+  direction: integer().notNull(),
+  headsign: text().notNull(),
+  stop_id: text().notNull(),
+  stop_sequence: integer().notNull(),
+  arrival_time: text().notNull(),
+  departure_time: text().notNull(),
+})

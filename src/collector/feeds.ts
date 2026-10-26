@@ -24,6 +24,8 @@ const jsonApiVehicle = z.object({
   // absent, never 0, while the transit vehicle is moving
   atStop: z.literal(1).optional(),
   onSchedule: z.number().nullish(),
+  load: z.number().nullish(),
+  capacity: z.number().nullish(),
 })
 
 const jsonApiResponse = z.object({ get_vehicles: z.array(jsonApiVehicle) })
@@ -46,16 +48,12 @@ export function parseJsonApi(
     next_stop_id: v.nextStopID == null ? null : String(v.nextStopID),
     at_stop: v.atStop === 1,
     on_schedule: v.onSchedule ?? null,
+    load: v.load ?? null,
+    capacity: v.capacity ?? null,
   }))
 }
 
-export function jsonApiHistoryRow({
-  route_id,
-  pattern_id,
-  at_stop,
-  on_schedule,
-  ...fix
-}: NewestPositionFixRow): PositionFixRow {
+export function jsonApiHistoryRow(fix: NewestPositionFixRow): PositionFixRow {
   return { source: 'json_api', ...fix }
 }
 

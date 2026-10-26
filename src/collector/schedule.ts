@@ -1,14 +1,16 @@
 import { strFromU8, unzipSync } from 'fflate'
 import Papa from 'papaparse'
-import type { scheduledStops } from './schema'
+import type { scheduledStops, timetableStops } from './schema'
 
 export const GTFS_STATIC_URL =
   'https://s3.amazonaws.com/etatransit.gtfs/catpublic.etaspot.net/gtfs.zip'
 
 export type ScheduledStop = typeof scheduledStops.$inferSelect
+export type TimetableStop = typeof timetableStops.$inferSelect
 
 export type PublishedSchedule = {
   scheduledStops: ScheduledStop[]
+  timetableStops: TimetableStop[]
   feedVersion: string | null
   feedStartDate: string | null
   feedEndDate: string | null
@@ -52,23 +54,35 @@ export function parsePublishedSchedule(zip: Uint8Array): PublishedSchedule {
   )
   const trips = new Map(readCsv(files, 'trips.txt').map((t) => [t.trip_id, t]))
 
-  const stops = readCsv(files, 'stop_times.txt').map((st) => {
+  const stops: ScheduledStop[] = []
+  const timetable: TimetableStop[] = []
+  for (const st of readCsv(files, 'stop_times.txt')) {
     const trip = trips.get(st.trip_id)
     if (!trip) throw new Error(`stop_times.txt names unknown trip ${st.trip_id}`)
-    return {
+    const stop = {
       route: routeNames.get(trip.route_id) ?? trip.route_id,
       days: serviceDays.get(trip.service_id) ?? trip.service_id,
       direction: Number(trip.direction_id),
       stop_id: st.stop_id,
       arrival_time: st.arrival_time,
       departure_time: st.departure_time,
-      timepoint: st.timepoint === '1',
     }
-  })
+    stops.push({ ...stop, timepoint: st.timepoint === '1' })
+    if (st.timepoint === '1') {
+      timetable.push({
+        ...stop,
+        id: `${st.trip_id}:${st.stop_sequence}`,
+        trip_id: st.trip_id,
+        headsign: trip.trip_headsign,
+        stop_sequence: Number(st.stop_sequence),
+      })
+    }
+  }
   const feedInfo = files['feed_info.txt'] ? readCsv(files, 'feed_info.txt')[0] : undefined
   return {
     // a set: two trips can share every field a scheduled stop has
     scheduledStops: [...new Map(stops.map((s) => [scheduledStopKey(s), s])).values()],
+    timetableStops: timetable,
     feedVersion: feedInfo?.feed_version || null,
     feedStartDate: feedInfo?.feed_start_date || null,
     feedEndDate: feedInfo?.feed_end_date || null,

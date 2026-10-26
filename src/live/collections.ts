@@ -9,6 +9,7 @@ import {
   newestPositionFixes,
   routePatterns,
   routeStops,
+  timetableStops,
 } from '../collector/schema'
 
 // Browsers only read; the Collector writes through commit(), which skips
@@ -32,6 +33,7 @@ export const busRouteCollection = readOnlyCollection(busRoutes, 'id')
 export const routePatternCollection = readOnlyCollection(routePatterns, 'id')
 export const busStopCollection = readOnlyCollection(busStops, 'id')
 export const routeStopCollection = readOnlyCollection(routeStops, 'id')
+export const timetableStopCollection = readOnlyCollection(timetableStops, 'id')
 
 export const liveCollections = [
   newestPositionFixCollection,
@@ -39,7 +41,13 @@ export const liveCollections = [
   routePatternCollection,
   busStopCollection,
   routeStopCollection,
+  timetableStopCollection,
 ]
 
 export const COLLECTOR_PARTY = 'collector'
 export const COLLECTOR_ROOM = 'cat'
+
+export type NewestPositionFix = InferSelectModel<typeof newestPositionFixes>
+export type BusRoute = InferSelectModel<typeof busRoutes>
+export type BusStop = InferSelectModel<typeof busStops>
+export type TimetableStop = InferSelectModel<typeof timetableStops>

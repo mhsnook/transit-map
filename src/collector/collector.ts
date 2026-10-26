@@ -9,6 +9,7 @@ import {
   newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
+  timetableStopCollection,
 } from '../live/collections'
 import { syncBatch } from './diff'
 import migrations from './migrations/migrations'
@@ -254,7 +255,9 @@ export class Collector extends PartyDbServer<Env> {
       .orderBy(desc(schema.scheduleChanges.id))
       .limit(1)
       .get()
-    this.#gtfsStaticEtag ??= latest?.gtfs_etag ?? null
+    // An empty timetable needs the file even if it hasn't changed.
+    const timetableEmpty = !this.db.select({ id: schema.timetableStops.id }).from(schema.timetableStops).limit(1).get()
+    this.#gtfsStaticEtag ??= timetableEmpty ? null : (latest?.gtfs_etag ?? null)
     const polled = await this.#poll(
       'schedule',
       GTFS_STATIC_URL,
@@ -265,6 +268,13 @@ export class Collector extends PartyDbServer<Env> {
     this.#gtfsStaticEtag = polled.response.headers.get('etag')
 
     const schedule = polled.value
+    const timetable = syncBatch(
+      timetableStopCollection,
+      this.db.select().from(schema.timetableStops).all(),
+      schedule.timetableStops,
+    )
+    if (timetable.ops.length > 0) await this.commit([timetable])
+
     const versionId = await scheduleVersionId(schedule.scheduledStops)
     if (latest?.to_version_id === versionId && latest.feed_version === schedule.feedVersion) {
       return true
