@@ -60,7 +60,9 @@ export function parsePublishedSchedule(zip: Uint8Array): PublishedSchedule {
       days: serviceDays.get(trip.service_id) ?? trip.service_id,
       direction: Number(trip.direction_id),
       stop_id: st.stop_id,
-      time: st.arrival_time,
+      arrival_time: st.arrival_time,
+      departure_time: st.departure_time,
+      timepoint: st.timepoint === '1',
     }
   })
   const feedInfo = files['feed_info.txt'] ? readCsv(files, 'feed_info.txt')[0] : undefined
@@ -74,7 +76,7 @@ export function parsePublishedSchedule(zip: Uint8Array): PublishedSchedule {
 }
 
 export function scheduledStopKey(s: ScheduledStop): string {
-  return [s.route, s.days, s.direction, s.stop_id, s.time].join('|')
+  return [s.route, s.days, s.direction, s.stop_id, s.arrival_time, s.departure_time, s.timepoint].join('|')
 }
 
 // Order-independent identity for a set of scheduled stops.

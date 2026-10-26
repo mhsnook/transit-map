@@ -57,7 +57,7 @@ _Avoid_: layover (alone), dwell, break
 ### Schedule
 
 **Scheduled stop**:
-One published fact of the form "this bus route stops at this bus stop at this time on these weekdays, going this way", joined from the GTFS feed's stop times, trips, routes and calendar. Trip ids, shapes and stop names are not part of it.
+One published fact of the form "this bus route arrives at and departs from this bus stop at these times on these weekdays, going this way", with whether the bus stop is a timepoint, joined from the GTFS feed's stop times, trips, routes and calendar. Trip ids, shapes and stop names are not part of it.
 _Avoid_: stop time (for this), timetable entry, trip stop
 
 **Schedule version**:

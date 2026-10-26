@@ -107,8 +107,9 @@ export const routeStops = sqliteTable('route_stops', {
 })
 
 // The published schedule, as a set of scheduled stops. A scheduled stop is
-// "this bus route stops at this bus stop at this time on these days, going
-// this way"; trip ids, shapes and stop names are deliberately not part of it,
+// "this bus route arrives at and departs from this bus stop at these times on
+// these days, going this way"; trip ids, shapes and stop names are
+// deliberately not part of it,
 // so vendor-side renumbering or re-encoding is not a schedule change.
 
 const scheduledStopColumns = {
@@ -117,8 +118,11 @@ const scheduledStopColumns = {
   days: text().notNull(),
   direction: integer().notNull(),
   stop_id: text().notNull(),
-  // GTFS time, which can pass 24:00:00 for service after midnight
-  time: text().notNull(),
+  // GTFS times, which can pass 24:00:00 for service after midnight
+  arrival_time: text().notNull(),
+  departure_time: text().notNull(),
+  // false: the feed vendor's time here is an estimate between timepoints
+  timepoint: integer({ mode: 'boolean' }).notNull(),
 }
 
 // One row per distinct set of scheduled stops ever seen.
@@ -146,7 +150,7 @@ export const scheduleChanges = sqliteTable('schedule_changes', {
 
 // The scheduled stops of the latest change's to_version_id.
 export const scheduledStops = sqliteTable('scheduled_stops', scheduledStopColumns, (t) => [
-  primaryKey({ columns: [t.route, t.days, t.direction, t.stop_id, t.time] }),
+  primaryKey({ columns: [t.route, t.days, t.direction, t.stop_id, t.arrival_time, t.departure_time, t.timepoint] }),
 ])
 
 // The scheduled stops each change added or removed. The first change adds
@@ -158,5 +162,18 @@ export const scheduleDeltas = sqliteTable(
     change: text({ enum: ['added', 'removed'] }).notNull(),
     ...scheduledStopColumns,
   },
-  (t) => [primaryKey({ columns: [t.change_id, t.route, t.days, t.direction, t.stop_id, t.time] })],
+  (t) => [
+    primaryKey({
+      columns: [
+        t.change_id,
+        t.route,
+        t.days,
+        t.direction,
+        t.stop_id,
+        t.arrival_time,
+        t.departure_time,
+        t.timepoint,
+      ],
+    }),
+  ],
 )

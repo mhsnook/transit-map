@@ -16,8 +16,10 @@ CREATE TABLE `schedule_deltas` (
 	`days` text NOT NULL,
 	`direction` integer NOT NULL,
 	`stop_id` text NOT NULL,
-	`time` text NOT NULL,
-	PRIMARY KEY(`change_id`, `route`, `days`, `direction`, `stop_id`, `time`)
+	`arrival_time` text NOT NULL,
+	`departure_time` text NOT NULL,
+	`timepoint` integer NOT NULL,
+	PRIMARY KEY(`change_id`, `route`, `days`, `direction`, `stop_id`, `arrival_time`, `departure_time`, `timepoint`)
 );
 --> statement-breakpoint
 CREATE TABLE `schedule_versions` (
@@ -31,6 +33,8 @@ CREATE TABLE `scheduled_stops` (
 	`days` text NOT NULL,
 	`direction` integer NOT NULL,
 	`stop_id` text NOT NULL,
-	`time` text NOT NULL,
-	PRIMARY KEY(`route`, `days`, `direction`, `stop_id`, `time`)
+	`arrival_time` text NOT NULL,
+	`departure_time` text NOT NULL,
+	`timepoint` integer NOT NULL,
+	PRIMARY KEY(`route`, `days`, `direction`, `stop_id`, `arrival_time`, `departure_time`, `timepoint`)
 );

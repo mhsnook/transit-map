@@ -317,7 +317,9 @@ export class Collector extends PartyDbServer<Env> {
             eq(schema.scheduledStops.days, s.days),
             eq(schema.scheduledStops.direction, s.direction),
             eq(schema.scheduledStops.stop_id, s.stop_id),
-            eq(schema.scheduledStops.time, s.time),
+            eq(schema.scheduledStops.arrival_time, s.arrival_time),
+            eq(schema.scheduledStops.departure_time, s.departure_time),
+            eq(schema.scheduledStops.timepoint, s.timepoint),
           ),
         )
         .run()

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d7893c4b-e9d2-4c2e-93b4-928623824b4d",
+  "id": "25aa1a25-7ecb-4ac9-8f1f-f62ed6b4026a",
   "prevId": "9886a4b5-a560-4f4f-a52f-49fb4978b557",
   "tables": {
     "bus_routes": {
@@ -538,9 +538,23 @@
           "notNull": true,
           "autoincrement": false
         },
-        "time": {
-          "name": "time",
+        "arrival_time": {
+          "name": "arrival_time",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "departure_time": {
+          "name": "departure_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timepoint": {
+          "name": "timepoint",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -549,16 +563,18 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "schedule_deltas_change_id_route_days_direction_stop_id_time_pk": {
+        "schedule_deltas_change_id_route_days_direction_stop_id_arrival_time_departure_time_timepoint_pk": {
           "columns": [
             "change_id",
             "route",
             "days",
             "direction",
             "stop_id",
-            "time"
+            "arrival_time",
+            "departure_time",
+            "timepoint"
           ],
-          "name": "schedule_deltas_change_id_route_days_direction_stop_id_time_pk"
+          "name": "schedule_deltas_change_id_route_days_direction_stop_id_arrival_time_departure_time_timepoint_pk"
         }
       },
       "uniqueConstraints": {},
@@ -626,9 +642,23 @@
           "notNull": true,
           "autoincrement": false
         },
-        "time": {
-          "name": "time",
+        "arrival_time": {
+          "name": "arrival_time",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "departure_time": {
+          "name": "departure_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timepoint": {
+          "name": "timepoint",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -637,15 +667,17 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "scheduled_stops_route_days_direction_stop_id_time_pk": {
+        "scheduled_stops_route_days_direction_stop_id_arrival_time_departure_time_timepoint_pk": {
           "columns": [
             "route",
             "days",
             "direction",
             "stop_id",
-            "time"
+            "arrival_time",
+            "departure_time",
+            "timepoint"
           ],
-          "name": "scheduled_stops_route_days_direction_stop_id_time_pk"
+          "name": "scheduled_stops_route_days_direction_stop_id_arrival_time_departure_time_timepoint_pk"
         }
       },
       "uniqueConstraints": {},
