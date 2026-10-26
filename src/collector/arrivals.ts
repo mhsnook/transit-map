@@ -11,8 +11,8 @@ export const ARRIVAL_RADIUS_M = 30
 // at a bus stop it is passing now; its prediction is too far off to match.
 const PREDICTION_WINDOW_MS = 15 * 60_000
 // How long a scheduled call stays watched after its last arrival prediction.
-// get_stop_etas drops a call once the transit vehicle has passed it, which
-// can be before the position fix that shows it there arrives.
+// minutesToNextStops drops a call once the transit vehicle has passed it,
+// which can be before the position fix that shows it there arrives.
 const WATCH_MS = 20 * 60_000
 
 type Watched = { call: CurrentArrivalPredictionRow; lastPredictedAt: number; fired: Set<ArrivalRule> }

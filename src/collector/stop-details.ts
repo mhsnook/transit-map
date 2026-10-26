@@ -10,7 +10,7 @@ export type ScheduledCallHistory = {
   route_id: number
   equipment_id: string
   // oldest first
-  predictions: { made_at: number; predicted_at: number }[]
+  predictions: { made_at: number; predicted_at: number; source: (typeof schema.predictionSources)[number] }[]
   arrivals: { rule: (typeof schema.arrivalRules)[number]; arrived_at: number; distance_m: number }[]
 }
 
@@ -51,7 +51,7 @@ export function stopHistory(db: Db, stopId: string): ScheduledCallHistory[] {
     const call = callFor(row)
     // a transit vehicle can be swapped onto a scheduled trip
     call.equipment_id = row.equipment_id
-    call.predictions.push({ made_at: row.made_at, predicted_at: row.predicted_at })
+    call.predictions.push({ made_at: row.made_at, predicted_at: row.predicted_at, source: row.source })
   }
 
   const o = schema.observedArrivals

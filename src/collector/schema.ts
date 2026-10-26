@@ -226,7 +226,8 @@ const scheduledCallColumns = {
   equipment_id: text().notNull(),
 }
 
-// The arrival predictions get_stop_etas serves now, up to five per bus stop.
+// The arrival predictions get_vehicles serves now, for each transit
+// vehicle's next five bus stops.
 export const currentArrivalPredictions = sqliteTable('current_arrival_predictions', {
   // `${schedule_number}:${pattern_stop_id}`
   id: text().primaryKey(),
@@ -237,14 +238,21 @@ export const currentArrivalPredictions = sqliteTable('current_arrival_prediction
   timepoint: integer({ mode: 'boolean' }).notNull(),
 })
 
-// One row when a scheduled call's arrival prediction is first served and one
-// each time it changes; a prediction served again unchanged is not stored.
+export const predictionSources = ['get_vehicles', 'get_stop_etas'] as const
+
+// get_vehicles rows are written when an arrival prediction is first served
+// and each time it changes, from a poll every 10 s, so the newest row made
+// before a moment is the prediction showing then. get_stop_etas rows are
+// every arrival prediction in a snapshot taken every ten minutes; a gap
+// between them says nothing about what was showing.
 export const arrivalPredictions = sqliteTable(
   'arrival_predictions',
   {
     id: integer().primaryKey(),
-    // when the collector first saw this prediction served
+    // when the collector saw this prediction served
     made_at: integer().notNull(),
+    // rows recorded before this column existed all came from get_stop_etas
+    source: text({ enum: predictionSources }).notNull().default('get_stop_etas'),
     ...scheduledCallColumns,
     predicted_at: integer().notNull(),
     direction: text(),

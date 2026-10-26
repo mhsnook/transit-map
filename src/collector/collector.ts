@@ -42,7 +42,12 @@ import {
   type PublishedSchedule,
   type ScheduledStop,
 } from './schedule'
-import { parseStopEtas, stopEtasUrl, type CurrentArrivalPredictionRow } from './predictions'
+import {
+  parseStopEtas,
+  parseVehicleEtas,
+  stopEtasUrl,
+  type CurrentArrivalPredictionRow,
+} from './predictions'
 import { stopHistory, stopSchedule } from './stop-details'
 
 const TICK_MS = 10_000
@@ -53,6 +58,8 @@ const REFERENCE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_RETRY_MS = 60 * 1000
 const SCHEDULE_EVERY_MS = 60 * 60 * 1000
 const SCHEDULE_RETRY_MS = 10 * 60 * 1000
+const STOP_ETAS_EVERY_MS = 10 * 60 * 1000
+const STOP_ETAS_RETRY_MS = 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
 type Polled<T> =
@@ -72,6 +79,7 @@ export class Collector extends PartyDbServer<Env> {
   #lastPrunedAt = 0
   #referenceDueAt = 0
   #scheduleDueAt = 0
+  #stopEtasDueAt = 0
   #gtfsStaticEtag: string | null | undefined
   #arrivals = new ArrivalWatch()
 
@@ -96,7 +104,7 @@ export class Collector extends PartyDbServer<Env> {
       await Promise.all([
         this.#pollJsonApi(),
         this.#pollGtfsRt(),
-        this.#pollStopEtas(),
+        this.#snapshotStopEtasIfDue(),
         this.#refreshReferenceIfDue(),
         this.#checkScheduleIfDue(),
       ])
@@ -111,12 +119,20 @@ export class Collector extends PartyDbServer<Env> {
       'json_api',
       JSON_API_URL,
       {},
-      async (response) => parseJsonApi(await readJson(response), Date.now()),
-      (fixes) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
+      async (response) => {
+        const body = await readJson(response)
+        const receivedAt = Date.now()
+        return { fixes: parseJsonApi(body, receivedAt), predictions: parseVehicleEtas(body, receivedAt) }
+      },
+      ({ fixes }) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
     )
     if (!polled.ok) return
-    this.#recordArrivals(polled.value)
-    await this.#syncNewestFixes(polled.value)
+    const { fixes, predictions } = polled.value
+    // a scheduled call has to be watched before a fix can arrive at it
+    this.#arrivals.predicted(predictions, Date.now())
+    this.#recordArrivals(fixes)
+    await this.#syncNewestFixes(fixes)
+    await this.#syncPredictions(predictions)
   }
 
   async #pollGtfsRt() {
@@ -131,18 +147,29 @@ export class Collector extends PartyDbServer<Env> {
     if (polled.ok) this.#gtfsRtEtag = polled.response.headers.get('etag')
   }
 
-  async #pollStopEtas() {
+  // Every arrival prediction for every bus stop, up to ~80 minutes out. The
+  // live ones come from get_vehicles; this is a sample of longer lead times
+  // for prediction error, so it is taken rarely and not while nothing runs.
+  async #snapshotStopEtasIfDue() {
+    const now = Date.now()
+    if (now < this.#stopEtasDueAt) return
+    const running = this.db.select({ id: schema.newestPositionFixes.equipment_id }).from(schema.newestPositionFixes).limit(1).get()
     const stopIds = this.db.select({ id: schema.busStops.id }).from(schema.busStops).all()
-    if (stopIds.length === 0) return
+    if (!running || stopIds.length === 0) return
     const polled = await this.#poll(
       'stop_etas',
       stopEtasUrl(stopIds.map((s) => s.id)),
       {},
       async (response) => parseStopEtas(await readJson(response), Date.now()),
     )
+    this.#stopEtasDueAt = now + (polled.ok ? STOP_ETAS_EVERY_MS : STOP_ETAS_RETRY_MS)
     if (!polled.ok) return
-    this.#arrivals.predicted(polled.value, Date.now())
-    await this.#syncPredictions(polled.value)
+    for (const { id: _, ...prediction } of polled.value) {
+      this.db
+        .insert(schema.arrivalPredictions)
+        .values({ made_at: now, source: 'get_stop_etas', ...prediction })
+        .run()
+    }
   }
 
   // Records the poll attempt, plus whatever `store` reports.
@@ -244,7 +271,7 @@ export class Collector extends PartyDbServer<Env> {
     for (const op of batch.ops) {
       if (op.type === 'delete') continue
       const { id: _, ...prediction } = op.value
-      this.db.insert(schema.arrivalPredictions).values({ made_at: madeAt, ...prediction }).run()
+      this.db.insert(schema.arrivalPredictions).values({ made_at: madeAt, source: 'get_vehicles', ...prediction }).run()
     }
     await this.commit([batch])
   }

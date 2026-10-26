@@ -4,8 +4,13 @@ import type { BusRoute } from '../live/collections'
 import { charlottesvilleMinutes, formatClockAt, formatMinutes } from '../lib/charlottesville-time'
 import { RouteChip } from './RouteChip'
 
-const LEADS = [1, 3, 6, 10] as const
+// get_vehicles predicts each transit vehicle's next five bus stops, which is
+// rarely more than ten minutes out.
+const LEADS = [1, 3, 6] as const
 type Lead = (typeof LEADS)[number]
+// get_stop_etas snapshots are ten minutes apart, so a band narrower than ten
+// minutes holds at most one per arrival.
+const SNAPSHOT_BAND = { from: 5, to: 14 }
 // A scheduled call predicted this recently may still arrive.
 const UNRESOLVED_AFTER_MS = 30 * 60_000
 const TABLE_PAGE = 30
@@ -21,22 +26,32 @@ const dayFormat = new Intl.DateTimeFormat('en-US', {
 type Observed = {
   call: ScheduledCallHistory
   arrivedAt: number
-  // the arrival prediction in force `lead` minutes before the observed arrival
+  // the get_vehicles prediction showing `lead` minutes before the observed arrival
   predictedAt: Map<Lead, number>
+  // predicted minus observed, in minutes, for get_stop_etas snapshots taken
+  // within SNAPSHOT_BAND of the observed arrival
+  snapshotErrors: number[]
 }
 
 function observe(call: ScheduledCallHistory): Observed | null {
   if (call.arrivals.length === 0) return null
   const arrivedAt = Math.min(...call.arrivals.map((a) => a.arrived_at))
+  const live = call.predictions.filter((p) => p.source === 'get_vehicles')
   const predictedAt = new Map<Lead, number>()
   for (const lead of LEADS) {
     const madeBy = arrivedAt - lead * 60_000
     // predictions are oldest first
-    let inForce: number | undefined
-    for (const p of call.predictions) if (p.made_at <= madeBy) inForce = p.predicted_at
-    if (inForce != null) predictedAt.set(lead, inForce)
+    let showing: number | undefined
+    for (const p of live) if (p.made_at <= madeBy) showing = p.predicted_at
+    if (showing != null) predictedAt.set(lead, showing)
   }
-  return { call, arrivedAt, predictedAt }
+  const snapshotErrors = call.predictions
+    .filter((p) => {
+      const lead = minutesBetween(arrivedAt, p.made_at)
+      return p.source === 'get_stop_etas' && lead >= SNAPSHOT_BAND.from && lead <= SNAPSHOT_BAND.to
+    })
+    .map((p) => minutesBetween(p.predicted_at, arrivedAt))
+  return { call, arrivedAt, predictedAt, snapshotErrors }
 }
 
 function median(values: number[]): number | null {
@@ -122,15 +137,28 @@ function StatTile({ label, value, note }: { label: string; value: string; note: 
   )
 }
 
-// Prediction error: the arrival prediction in force `lead` minutes before the
-// observed arrival, minus the observed arrival. Positive: the bus came early.
+// Prediction error is predicted minus observed: positive, the bus came early.
 function PredictionErrors({ observed }: { observed: Observed[] }) {
+  const rows = [
+    ...LEADS.map((lead) => ({
+      label: `${lead} min before`,
+      errors: observed
+        .filter((o) => o.predictedAt.has(lead))
+        .map((o) => minutesBetween(o.predictedAt.get(lead)!, o.arrivedAt)),
+    })),
+    {
+      label: `${SNAPSHOT_BAND.from}–${SNAPSHOT_BAND.to} min before`,
+      errors: observed.flatMap((o) => o.snapshotErrors),
+    },
+  ]
   return (
     <div>
       <h3 className="text-xs font-medium tracking-wide text-gray-500 uppercase">Prediction error</h3>
       <p className="mt-0.5 text-xs text-gray-500">
         How far the prediction shown some minutes before the bus arrived was from when it did. + means the bus came
-        sooner than predicted.
+        sooner than predicted. The 1, 3 and 6 minute rows use the live predictions; the {SNAPSHOT_BAND.from}–
+        {SNAPSHOT_BAND.to} minute row uses one sample per arrival, from snapshots of every bus stop taken every ten
+        minutes.
       </p>
       <table className="mt-2 w-full text-left tabular-nums">
         <thead className="text-xs text-gray-500">
@@ -142,15 +170,12 @@ function PredictionErrors({ observed }: { observed: Observed[] }) {
           </tr>
         </thead>
         <tbody>
-          {LEADS.map((lead) => {
-            const errors = observed
-              .filter((o) => o.predictedAt.has(lead))
-              .map((o) => minutesBetween(o.predictedAt.get(lead)!, o.arrivedAt))
+          {rows.map(({ label, errors }) => {
             const m = median(errors)
             const within = errors.filter((e) => Math.abs(e) <= 1).length
             return (
-              <tr key={lead} className="border-t border-gray-100">
-                <td className="py-1.5">{lead} min before</td>
+              <tr key={label} className="border-t border-gray-100">
+                <td className="py-1.5">{label}</td>
                 <td className="py-1.5">{m == null ? '—' : signedMinutes(m)}</td>
                 <td className="py-1.5">{errors.length ? `${Math.round((within / errors.length) * 100)}%` : '—'}</td>
                 <td className="py-1.5 text-right text-gray-500">{errors.length}</td>
