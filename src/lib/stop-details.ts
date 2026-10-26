@@ -6,7 +6,7 @@ import type { ScheduledStop } from '../collector/schedule'
 import type { ScheduledCallHistory } from '../collector/stop-details'
 import { COLLECTOR_ROOM } from '../live/collections'
 
-const stopInput = z.object({ stopId: z.string() })
+const stopInput = z.object({ stopId: z.string().regex(/^\d+$/) })
 
 const collector = () => getServerByName(env.COLLECTOR, COLLECTOR_ROOM)
 
@@ -25,4 +25,12 @@ export const getStopHistory = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<ScheduledCallHistory[]> => {
     const calls: ScheduledCallHistory[] = await (await collector()).stopHistory(data.stopId)
     return calls
+  })
+
+// Asks the collector to fetch this bus stop's arrival predictions every tick
+// for the next minute.
+export const watchStop = createServerFn({ method: 'POST' })
+  .validator(stopInput)
+  .handler(async ({ data }) => {
+    await (await collector()).watchStop(data.stopId)
   })

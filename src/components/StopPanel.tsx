@@ -1,17 +1,20 @@
 import { eq } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
 import { Await, getRouteApi } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { ScheduledStop } from '../collector/schedule'
 import type { BusRoute, BusStop } from '../live/collections'
 import { getLiveDb } from '../live/db'
 import { formatClockAt } from '../lib/charlottesville-time'
+import { watchStop } from '../lib/stop-details'
 import { upcomingCalls, type UpcomingCall } from '../lib/stop-upcoming'
 import { RouteChip } from './RouteChip'
 import { StopHistory } from './StopHistory'
 
 const routeApi = getRouteApi('/')
 const UPCOMING_LIMIT = 15
+// under the collector's STOP_WATCH_MS, so the watch doesn't lapse between renewals
+const WATCH_RENEW_MS = 30_000
 
 export function StopPanel({
   stopId,
@@ -32,6 +35,13 @@ export function StopPanel({
   const { schedule, history } = routeApi.useLoaderData()
   const showHistory = routeApi.useSearch({ select: (s) => s.history ?? false })
   const navigate = routeApi.useNavigate()
+
+  useEffect(() => {
+    const watch = () => void watchStop({ data: { stopId } }).catch(() => {})
+    watch()
+    const id = setInterval(watch, WATCH_RENEW_MS)
+    return () => clearInterval(id)
+  }, [stopId])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

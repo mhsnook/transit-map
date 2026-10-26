@@ -73,7 +73,7 @@ export const pollOutcomes = [
   'parse_error',
 ] as const
 
-export const pollSources = [...sources, 'reference', 'schedule', 'stop_etas'] as const
+export const pollSources = [...sources, 'reference', 'schedule', 'stop_etas', 'watched_stop_etas'] as const
 export type PollSource = (typeof pollSources)[number]
 
 export const pollAttempts = sqliteTable(
@@ -227,7 +227,8 @@ const scheduledCallColumns = {
 }
 
 // The arrival predictions get_vehicles serves now, for each transit
-// vehicle's next five bus stops.
+// vehicle's next five bus stops, plus get_stop_etas for the bus stops
+// browsers have open.
 export const currentArrivalPredictions = sqliteTable('current_arrival_predictions', {
   // `${schedule_number}:${pattern_stop_id}`
   id: text().primaryKey(),
@@ -242,7 +243,8 @@ export const predictionSources = ['get_vehicles', 'get_stop_etas'] as const
 
 // get_vehicles rows are written when an arrival prediction is first served
 // and each time it changes, from a poll every 10 s, so the newest row made
-// before a moment is the prediction showing then. get_stop_etas rows are
+// before a moment is the prediction showing then. A restart writes the
+// current ones again. get_stop_etas rows are
 // every arrival prediction in a snapshot taken every ten minutes; a gap
 // between them says nothing about what was showing.
 export const arrivalPredictions = sqliteTable(
