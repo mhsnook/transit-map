@@ -1,6 +1,6 @@
 import { drizzle, type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
-import { lt } from 'drizzle-orm'
+import { and, desc, eq, lt } from 'drizzle-orm'
 import { PartyDbServer } from 'party-db/server'
 import {
   busRouteCollection,
@@ -31,6 +31,14 @@ import {
   parseStops,
   referenceRows,
 } from './reference'
+import {
+  GTFS_STATIC_URL,
+  parsePublishedSchedule,
+  scheduledStopKey,
+  scheduleVersionId,
+  type PublishedSchedule,
+  type ScheduledStop,
+} from './schedule'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
@@ -38,8 +46,13 @@ const RETENTION_MS = 14 * 24 * 60 * 60 * 1000
 const PRUNE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_RETRY_MS = 60 * 1000
+const SCHEDULE_EVERY_MS = 60 * 60 * 1000
+const SCHEDULE_RETRY_MS = 10 * 60 * 1000
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
+type Polled<T> =
+  | { ok: true; response: Response; value: T }
+  | { ok: false; outcome: PollResult['outcome'] }
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
@@ -52,6 +65,8 @@ export class Collector extends PartyDbServer<Env> {
   #gtfsRtEtag: string | null = null
   #lastPrunedAt = 0
   #referenceDueAt = 0
+  #scheduleDueAt = 0
+  #gtfsStaticEtag: string | null | undefined
 
   async onStart() {
     this.db = drizzle(this.ctx.storage, { schema })
@@ -75,6 +90,7 @@ export class Collector extends PartyDbServer<Env> {
         this.#pollJsonApi(),
         this.#pollGtfsRt(),
         this.#refreshReferenceIfDue(),
+        this.#checkScheduleIfDue(),
       ])
       this.#pruneIfDue()
     } catch (error) {
@@ -90,7 +106,7 @@ export class Collector extends PartyDbServer<Env> {
       async (response) => parseJsonApi(await readJson(response), Date.now()),
       (fixes) => this.#storeFixes(fixes.map(jsonApiHistoryRow)),
     )
-    if (polled) await this.#syncNewestFixes(polled.value)
+    if (polled.ok) await this.#syncNewestFixes(polled.value)
   }
 
   async #pollGtfsRt() {
@@ -102,32 +118,31 @@ export class Collector extends PartyDbServer<Env> {
         parseGtfsRtPositions(new Uint8Array(await response.arrayBuffer()), Date.now()),
       (fixes) => this.#storeFixes(fixes),
     )
-    if (polled) this.#gtfsRtEtag = polled.response.headers.get('etag')
+    if (polled.ok) this.#gtfsRtEtag = polled.response.headers.get('etag')
   }
 
-  // Records the poll attempt, plus whatever `store` reports. Returns null when
-  // there was nothing to parse or parsing failed.
+  // Records the poll attempt, plus whatever `store` reports.
   async #poll<T>(
     source: schema.PollSource,
     url: string,
     headers: Record<string, string>,
     parse: (response: Response) => Promise<T>,
     store?: (value: T) => Partial<PollResult>,
-  ): Promise<{ response: Response; value: T } | null> {
+  ): Promise<Polled<T>> {
     const { attempt, response } = await this.#fetch(source, url, headers)
     if (!response) {
       this.#recordAttempt(attempt)
-      return null
+      return { ok: false, outcome: attempt.outcome }
     }
     let value: T
     try {
       value = await parse(response)
     } catch (error) {
       this.#recordAttempt({ ...attempt, outcome: 'parse_error', error: String(error) })
-      return null
+      return { ok: false, outcome: 'parse_error' }
     }
     this.#recordAttempt({ ...attempt, ...store?.(value) })
-    return { response, value }
+    return { ok: true, response, value }
   }
 
   // Resolves with a response only for a 2xx; anything else is a finished attempt.
@@ -209,7 +224,7 @@ export class Collector extends PartyDbServer<Env> {
       fetchReference(ROUTES_URL, parseRouteAbbrs),
       fetchReference(STOPS_URL, parseStops),
     ])
-    if (!patterns || !abbrs || !stops) return false
+    if (!patterns.ok || !abbrs.ok || !stops.ok) return false
 
     const currentRoutes = this.db.select().from(schema.busRoutes).all()
     const { busRoutes, routePatterns } = referenceRows(patterns.value, abbrs.value, currentRoutes)
@@ -221,6 +236,94 @@ export class Collector extends PartyDbServer<Env> {
     ].filter((batch) => batch.ops.length > 0)
     if (batches.length > 0) await this.commit(batches)
     return true
+  }
+
+  async #checkScheduleIfDue() {
+    const now = Date.now()
+    if (now < this.#scheduleDueAt) return
+    const checked = await this.#checkSchedule()
+    this.#scheduleDueAt = now + (checked ? SCHEDULE_EVERY_MS : SCHEDULE_RETRY_MS)
+  }
+
+  // The ETag is checked first; a changed file is parsed into scheduled stops,
+  // and only a changed set (or feed_version) is recorded as a change.
+  async #checkSchedule(): Promise<boolean> {
+    const latest = this.db
+      .select()
+      .from(schema.scheduleChanges)
+      .orderBy(desc(schema.scheduleChanges.id))
+      .limit(1)
+      .get()
+    this.#gtfsStaticEtag ??= latest?.gtfs_etag ?? null
+    const polled = await this.#poll(
+      'schedule',
+      GTFS_STATIC_URL,
+      this.#gtfsStaticEtag ? { 'if-none-match': this.#gtfsStaticEtag } : {},
+      async (response) => parsePublishedSchedule(new Uint8Array(await response.arrayBuffer())),
+    )
+    if (!polled.ok) return polled.outcome === 'not_modified'
+    this.#gtfsStaticEtag = polled.response.headers.get('etag')
+
+    const schedule = polled.value
+    const versionId = await scheduleVersionId(schedule.scheduledStops)
+    if (latest?.to_version_id === versionId && latest.feed_version === schedule.feedVersion) {
+      return true
+    }
+    this.#recordScheduleChange(latest?.to_version_id ?? null, versionId, schedule)
+    return true
+  }
+
+  #recordScheduleChange(fromVersionId: string | null, toVersionId: string, schedule: PublishedSchedule) {
+    const next = new Map(schedule.scheduledStops.map((s) => [scheduledStopKey(s), s]))
+    const removed: ScheduledStop[] = []
+    for (const s of this.db.select().from(schema.scheduledStops).all()) {
+      if (!next.delete(scheduledStopKey(s))) removed.push(s)
+    }
+    const added = [...next.values()]
+
+    this.db
+      .insert(schema.scheduleVersions)
+      .values({
+        id: toVersionId,
+        first_seen_at: Date.now(),
+        scheduled_stop_count: schedule.scheduledStops.length,
+      })
+      .onConflictDoNothing()
+      .run()
+    const change = this.db
+      .insert(schema.scheduleChanges)
+      .values({
+        observed_at: Date.now(),
+        from_version_id: fromVersionId,
+        to_version_id: toVersionId,
+        feed_version: schedule.feedVersion,
+        feed_start_date: schedule.feedStartDate,
+        feed_end_date: schedule.feedEndDate,
+        gtfs_etag: this.#gtfsStaticEtag,
+      })
+      .returning({ id: schema.scheduleChanges.id })
+      .get()
+    for (const s of added) {
+      this.db.insert(schema.scheduleDeltas).values({ change_id: change.id, change: 'added', ...s }).run()
+      this.db.insert(schema.scheduledStops).values(s).run()
+    }
+    for (const s of removed) {
+      this.db.insert(schema.scheduleDeltas).values({ change_id: change.id, change: 'removed', ...s }).run()
+      this.db
+        .delete(schema.scheduledStops)
+        .where(
+          and(
+            eq(schema.scheduledStops.route, s.route),
+            eq(schema.scheduledStops.days, s.days),
+            eq(schema.scheduledStops.direction, s.direction),
+            eq(schema.scheduledStops.stop_id, s.stop_id),
+            eq(schema.scheduledStops.arrival_time, s.arrival_time),
+            eq(schema.scheduledStops.departure_time, s.departure_time),
+            eq(schema.scheduledStops.timepoint, s.timepoint),
+          ),
+        )
+        .run()
+    }
   }
 
   #pruneIfDue() {
