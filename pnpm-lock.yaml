@@ -41,12 +41,18 @@ importers:
       drizzle-zod:
         specifier: 0.8.3
         version: 0.8.3(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261025.1))(zod@4.6.7)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       gtfs-realtime-bindings:
         specifier: 2.2.0
         version: 2.2.0
       maplibre-gl:
         specifier: 6.15.0
         version: 6.15.0
+      papaparse:
+        specifier: 5.7.0
+        version: 5.7.0
       party-db:
         specifier: 0.0.6
         version: 0.0.6(@standard-schema/spec@1.1.0)(@tanstack/db@0.6.17(typescript@6.0.3))(partyserver@0.5.10(@cloudflare/workers-types@5.20261025.1))(partysocket@1.3.0(react@19.3.1))(zod@4.6.7)
@@ -90,6 +96,9 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.5
+      '@types/papaparse':
+        specifier: 5.5.2
+        version: 5.5.2
       '@types/react':
         specifier: ^19.2.0
         version: 19.3.0
@@ -1546,6 +1555,9 @@ packages:
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
+  '@types/papaparse@5.5.2':
+    resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
+
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
@@ -1910,6 +1922,9 @@ packages:
   fetchdts@0.2.0:
     resolution: {integrity: sha512-PJb4ZTGT2/wK78RmVrxZITStWabhZlKBsL52VOgq+c7clEkdHdEB+0rtzrXCbZJqeYJj+IwNWYqB5/G6vouA6A==}
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   fractional-indexing@3.4.0:
     resolution: {integrity: sha512-8J3glhz2rrpKG6KmI7wmJo3zH1VjeOpN+vTJSw1fOyO+Viqq3zX6/5NGh6oaZB2qIAYdOYuu5Dz9xp4faOO0Pg==}
     engines: {node: ^14.13.1 || >=16.0.0}
@@ -2247,6 +2262,9 @@ packages:
   oxc-parser@0.120.0:
     resolution: {integrity: sha512-WyPWZlcIm+Fkte63FGfgFB8mAAk33aH9h5N9lphXVOHSXEBFFsmYdOBedVKly363aWABjZdaj/m9lBfEY4wt+w==}
     engines: {node: ^20.19.0 || >=22.12.0}
+
+  papaparse@5.7.0:
+    resolution: {integrity: sha512-qBGxg/7Q3Kl9Wfhrz2Z74UnvnHTXLNG6jmKJFeBvP2+y4lV7So+7SR62+Zd47JvdrCkX+nDcnr0ObPzek/+6RA==}
 
   party-db@0.0.6:
     resolution: {integrity: sha512-/Iro3K9BaCwds2ieGpsHVFDKxeoLXG1vvfK0wJBxXeS++XDrVaL1xOEgaXHVlzL3Z882B+Q9988VRbnouHRLGg==}
@@ -3914,6 +3932,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/papaparse@5.5.2':
+    dependencies:
+      '@types/node': 22.20.5
+
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
       '@types/react': 19.3.0
@@ -4190,6 +4212,8 @@ snapshots:
       picomatch: 4.0.7
 
   fetchdts@0.2.0: {}
+
+  fflate@0.8.3: {}
 
   fractional-indexing@3.4.0: {}
 
@@ -4514,6 +4538,8 @@ snapshots:
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
+
+  papaparse@5.7.0: {}
 
   party-db@0.0.6(@standard-schema/spec@1.1.0)(@tanstack/db@0.6.17(typescript@6.0.3))(partyserver@0.5.10(@cloudflare/workers-types@5.20261025.1))(partysocket@1.3.0(react@19.3.1))(zod@4.6.7):
     dependencies:

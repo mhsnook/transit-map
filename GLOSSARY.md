@@ -54,6 +54,24 @@ _Avoid_: run, journey, trip (alone)
 A hold at a terminal bus stop between two scheduled trips, during which the feed vendor already reports the next scheduled trip and its scheduled departure as the next arrival.
 _Avoid_: layover (alone), dwell, break
 
+### Schedule
+
+**Scheduled stop**:
+One published fact of the form "this bus route stops at this bus stop at this time on these weekdays, going this way", joined from the GTFS feed's stop times, trips, routes and calendar. Trip ids, shapes and stop names are not part of it.
+_Avoid_: stop time (for this), timetable entry, trip stop
+
+**Schedule version**:
+One distinct set of scheduled stops, identified by the SHA-256 of the sorted set.
+_Avoid_: feed version (that is the feed vendor's own label), schedule (alone), timetable
+
+**Schedule change**:
+An observed move from one schedule version to another, or a new feed vendor `feed_version` with the same scheduled stops.
+_Avoid_: update, revision, version bump
+
+**Schedule delta**:
+The scheduled stops a schedule change added or removed. A retimed stop is one removed and one added.
+_Avoid_: diff, changeset
+
 ### Observations
 
 **Position fix**:

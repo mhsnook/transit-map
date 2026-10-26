@@ -57,7 +57,7 @@ export const pollOutcomes = [
   'parse_error',
 ] as const
 
-export const pollSources = [...sources, 'reference'] as const
+export const pollSources = [...sources, 'reference', 'schedule'] as const
 export type PollSource = (typeof pollSources)[number]
 
 export const pollAttempts = sqliteTable(
@@ -105,3 +105,58 @@ export const routeStops = sqliteTable('route_stops', {
   route_id: integer().notNull(),
   stop_id: text().notNull(),
 })
+
+// The published schedule, as a set of scheduled stops. A scheduled stop is
+// "this bus route stops at this bus stop at this time on these days, going
+// this way"; trip ids, shapes and stop names are deliberately not part of it,
+// so vendor-side renumbering or re-encoding is not a schedule change.
+
+const scheduledStopColumns = {
+  route: text().notNull(),
+  // seven characters, Monday first: "MTWTF--"
+  days: text().notNull(),
+  direction: integer().notNull(),
+  stop_id: text().notNull(),
+  // GTFS time, which can pass 24:00:00 for service after midnight
+  time: text().notNull(),
+}
+
+// One row per distinct set of scheduled stops ever seen.
+export const scheduleVersions = sqliteTable('schedule_versions', {
+  // SHA-256 of the sorted scheduled stops
+  id: text().primaryKey(),
+  first_seen_at: integer().notNull(),
+  scheduled_stop_count: integer().notNull(),
+})
+
+// One row per observed change to the published schedule: the set of
+// scheduled stops changed, or the feed vendor's feed_version did. A change
+// with no deltas is a version bump that left the schedule as it was.
+export const scheduleChanges = sqliteTable('schedule_changes', {
+  id: integer().primaryKey(),
+  observed_at: integer().notNull(),
+  // null for the first schedule version seen
+  from_version_id: text(),
+  to_version_id: text().notNull(),
+  feed_version: text(),
+  feed_start_date: text(),
+  feed_end_date: text(),
+  gtfs_etag: text(),
+})
+
+// The scheduled stops of the latest change's to_version_id.
+export const scheduledStops = sqliteTable('scheduled_stops', scheduledStopColumns, (t) => [
+  primaryKey({ columns: [t.route, t.days, t.direction, t.stop_id, t.time] }),
+])
+
+// The scheduled stops each change added or removed. The first change adds
+// every scheduled stop.
+export const scheduleDeltas = sqliteTable(
+  'schedule_deltas',
+  {
+    change_id: integer().notNull(),
+    change: text({ enum: ['added', 'removed'] }).notNull(),
+    ...scheduledStopColumns,
+  },
+  (t) => [primaryKey({ columns: [t.change_id, t.route, t.days, t.direction, t.stop_id, t.time] })],
+)

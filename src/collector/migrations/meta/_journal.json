@@ -15,6 +15,13 @@
       "when": 1792900515485,
       "tag": "0001_reference_data",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792982134294,
+      "tag": "0002_schedule_versions",
+      "breakpoints": true
     }
   ]
 }
