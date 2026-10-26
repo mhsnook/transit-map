@@ -10,6 +10,7 @@ import {
   newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
+  timetableStopCollection,
 } from './collections'
 
 let liveDb: ReturnType<typeof connect> | undefined
@@ -30,6 +31,7 @@ function connect() {
     routePatterns: typed(routePatternCollection),
     busStops: typed(busStopCollection),
     routeStops: typed(routeStopCollection),
+    timetableStops: typed(timetableStopCollection),
   }
 }
 

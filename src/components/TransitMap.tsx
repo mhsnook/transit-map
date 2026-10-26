@@ -1,11 +1,11 @@
 import { decode } from '@googlemaps/polyline-codec'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useMemo, useState } from 'react'
-import MapGL, { Layer, Source } from 'react-map-gl/maplibre'
+import { useEffect, useMemo, useRef } from 'react'
+import MapGL, { Layer, Source, type MapRef } from 'react-map-gl/maplibre'
 // MapLibre finds its worker next to its own module, which bundling moves.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { FeatureCollection, LineString, Point } from 'geojson'
-import type { ExpressionSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, PaddingOptions } from 'maplibre-gl'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
 
@@ -22,16 +22,23 @@ function staleness(ageMs: number) {
   return 'stale'
 }
 
-export function TransitMap() {
+export function TransitMap({
+  selectedRoute,
+  onSelectRoute,
+  fitPadding,
+}: {
+  selectedRoute: number | null
+  onSelectRoute: (routeId: number) => void
+  // keeps a fitted route clear of whatever covers the map, like the drawer
+  fitPadding: PaddingOptions
+}) {
   const live = getLiveDb()
-  const { data: busRoutes } = useLiveQuery((q) =>
-    q.from({ r: live.busRoutes }).orderBy(({ r }) => r.id),
-  )
+  const mapRef = useRef<MapRef>(null)
+  const { data: busRoutes } = useLiveQuery((q) => q.from({ r: live.busRoutes }))
   const { data: patterns } = useLiveQuery((q) => q.from({ p: live.routePatterns }))
   const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
   const { data: servedStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
-  const [selectedRoute, setSelectedRoute] = useState<number | null>(null)
   const now = useNow(1000)
 
   const routeColor = useMemo(() => new Map(busRoutes.map((r) => [r.id, r.color])), [busRoutes])
@@ -51,6 +58,24 @@ export function TransitMap() {
     }),
     [patterns],
   )
+
+  useEffect(() => {
+    if (selectedRoute == null) return
+    const coordinates = lines.features
+      .filter((f) => f.properties?.route_id === selectedRoute)
+      .flatMap((f) => f.geometry.coordinates)
+    if (coordinates.length === 0) return
+    const lngs = coordinates.map(([lng]) => lng)
+    const lats = coordinates.map(([, lat]) => lat)
+    mapRef.current?.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: fitPadding, duration: 600 },
+    )
+    // fitPadding changes with the drawer; refitting on every drag would fight the user
+  }, [selectedRoute, lines])
 
   const selectedStopIds = useMemo(
     () => servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id),
@@ -87,108 +112,92 @@ export function TransitMap() {
   }
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap gap-1.5 sm:gap-2">
-        {busRoutes.map((r) => {
-          const selected = selectedRoute === r.id
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setSelectedRoute(selected ? null : r.id)}
-              title={r.name}
-              aria-label={r.name}
-              className="min-w-9 rounded-full border-2 px-2.5 py-0.5 text-sm sm:px-3 sm:py-1"
-              style={{
-                borderColor: r.color,
-                background: selected ? r.color : 'white',
-                color: selected ? 'white' : 'black',
-              }}
-            >
-              <span className="sm:hidden">{r.short_name}</span>
-              <span className="hidden sm:inline">{r.name}</span>
-            </button>
-          )
-        })}
-      </div>
-      <div className="h-[70vh] overflow-hidden rounded-lg border">
-        <MapGL
-          initialViewState={CHARLOTTESVILLE}
-          mapStyle={MAP_STYLE}
-          workerUrl={maplibreWorkerUrl}
-        >
-          <Source id="route-patterns" type="geojson" data={lines}>
-            <Layer
-              id="route-patterns"
-              type="line"
-              layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-              paint={{
-                'line-color': ['get', 'color'],
-                'line-width': ['case', isSelectedRoute, 5, 4],
-                'line-opacity': selectedRoute == null ? 0.5 : ['case', isSelectedRoute, 0.9, 0.12],
-              }}
-            />
-          </Source>
-          <Source id="bus-stops" type="geojson" data={stopPoints}>
-            <Layer
-              id="bus-stops"
-              type="circle"
-              minzoom={selectedRoute == null ? 14 : 0}
-              filter={
-                selectedRoute == null
-                  ? ['literal', true]
-                  : ['in', ['get', 'id'], ['literal', selectedStopIds]]
-              }
-              paint={{
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
-                'circle-color': 'white',
-                'circle-stroke-color': '#444',
-                'circle-stroke-width': 1,
-              }}
-            />
-          </Source>
-          <Source id="transit-vehicles" type="geojson" data={vehiclePoints}>
-            <Layer
-              id="transit-vehicles"
-              type="circle"
-              paint={{
-                'circle-radius': 8,
-                'circle-color': ['get', 'color'],
-                'circle-stroke-width': ['match', ['get', 'staleness'], 'fresh', 2, 4],
-                'circle-stroke-color': [
-                  'match',
-                  ['get', 'staleness'],
-                  'fresh',
-                  'white',
-                  'aging',
-                  '#F5A300',
-                  '#D7263D',
-                ],
-                'circle-opacity': [
-                  'case',
-                  ['get', 'dimmed'],
-                  0.25,
-                  ['==', ['get', 'staleness'], 'stale'],
-                  0.5,
-                  1,
-                ],
-              }}
-            />
-            <Layer
-              id="transit-vehicle-ages"
-              type="symbol"
-              layout={{
-                'text-field': ['get', 'label'],
-                'text-font': ['Noto Sans Regular'],
-                'text-size': 11,
-                'text-offset': [0, 1.5],
-                'text-allow-overlap': true,
-              }}
-              paint={{ 'text-color': '#222', 'text-halo-color': 'white', 'text-halo-width': 1.5 }}
-            />
-          </Source>
-        </MapGL>
-      </div>
-    </div>
+    <MapGL
+      ref={mapRef}
+      initialViewState={CHARLOTTESVILLE}
+      mapStyle={MAP_STYLE}
+      workerUrl={maplibreWorkerUrl}
+      interactiveLayerIds={['route-pattern-targets']}
+      onClick={(event) => {
+        const routeId = event.features?.[0]?.properties?.route_id
+        if (typeof routeId === 'number') onSelectRoute(routeId)
+      }}
+    >
+      <Source id="route-patterns" type="geojson" data={lines}>
+        <Layer
+          id="route-pattern-targets"
+          type="line"
+          paint={{ 'line-width': 16, 'line-opacity': 0 }}
+        />
+        <Layer
+          id="route-patterns"
+          type="line"
+          layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+          paint={{
+            'line-color': ['get', 'color'],
+            'line-width': ['case', isSelectedRoute, 5, 4],
+            'line-opacity': selectedRoute == null ? 0.5 : ['case', isSelectedRoute, 0.9, 0.12],
+          }}
+        />
+      </Source>
+      <Source id="bus-stops" type="geojson" data={stopPoints}>
+        <Layer
+          id="bus-stops"
+          type="circle"
+          minzoom={selectedRoute == null ? 14 : 0}
+          filter={
+            selectedRoute == null
+              ? ['literal', true]
+              : ['in', ['get', 'id'], ['literal', selectedStopIds]]
+          }
+          paint={{
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
+            'circle-color': 'white',
+            'circle-stroke-color': '#444',
+            'circle-stroke-width': 1,
+          }}
+        />
+      </Source>
+      <Source id="transit-vehicles" type="geojson" data={vehiclePoints}>
+        <Layer
+          id="transit-vehicles"
+          type="circle"
+          paint={{
+            'circle-radius': 8,
+            'circle-color': ['get', 'color'],
+            'circle-stroke-width': ['match', ['get', 'staleness'], 'fresh', 2, 4],
+            'circle-stroke-color': [
+              'match',
+              ['get', 'staleness'],
+              'fresh',
+              'white',
+              'aging',
+              '#F5A300',
+              '#D7263D',
+            ],
+            'circle-opacity': [
+              'case',
+              ['get', 'dimmed'],
+              0.25,
+              ['==', ['get', 'staleness'], 'stale'],
+              0.5,
+              1,
+            ],
+          }}
+        />
+        <Layer
+          id="transit-vehicle-ages"
+          type="symbol"
+          layout={{
+            'text-field': ['get', 'label'],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 11,
+            'text-offset': [0, 1.5],
+            'text-allow-overlap': true,
+          }}
+          paint={{ 'text-color': '#222', 'text-halo-color': 'white', 'text-halo-width': 1.5 }}
+        />
+      </Source>
+    </MapGL>
   )
 }

@@ -25,6 +25,7 @@ Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Worker
 - `src/collector/schedule.ts`: turns the published GTFS feed into scheduled stops for schedule versions. See [`docs/adr/0002-schedule-versions.md`](docs/adr/0002-schedule-versions.md).
 - `src/live/`: the party-db collections browsers sync, shared by the Collector and the client.
 - `src/components/TransitMap.tsx`: the MapLibre map (OpenFreeMap tiles) of route patterns, bus stops and transit vehicles.
+- `src/components/InfoPanel.tsx`: the side panel (desktop) or bottom sheet (phone, via vaul): bus routes, buses running now, and the selected bus route's timetable (`RouteSchedule.tsx`).
 - `src/routes/`: TanStack Router file routes.
 - `wrangler.jsonc`: Worker config, bindings and Durable Object migrations.
 
