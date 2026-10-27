@@ -11,6 +11,7 @@ import {
   gtfsMinutes,
   upcomingServiceDays,
 } from '../lib/charlottesville-time'
+import { useStopHover } from '../lib/hovered-stop'
 import { lateLabel, lateLabelAt } from '../lib/schedule-label'
 import { arrivalAt, timepointArrivals, tripOutcomes, type TripOutcome } from '../lib/trip-outcomes'
 
@@ -171,19 +172,12 @@ export function RouteSchedule({
             <thead className="sticky top-0 z-10 bg-white">
               <tr>
                 {dir.columns.map((c) => (
-                  <th
+                  <StopHeader
                     key={c.key}
-                    scope="col"
-                    className="border-b border-gray-200 px-2 pt-1 pb-2 text-left align-bottom text-[11px] leading-tight font-medium text-gray-600 first:pl-4"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelectStop(c.stopId)}
-                      className="text-left hover:text-gray-900 hover:underline"
-                    >
-                      {stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
-                    </button>
-                  </th>
+                    stopId={c.stopId}
+                    name={stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
+                    onSelect={onSelectStop}
+                  />
                 ))}
                 {outcomes.size > 0 && (
                   <th
@@ -257,5 +251,20 @@ function OutcomeLabel({ outcome, live, color }: { outcome: TripOutcome; live: bo
       {live && <span className="size-2 animate-pulse rounded-full" style={{ background: color }} />}
       {outcome.kind === 'started' ? (live ? 'starting' : '—') : lateLabel(outcome.minutes)}
     </span>
+  )
+}
+
+function StopHeader({ stopId, name, onSelect }: { stopId: string; name: string; onSelect: (stopId: string) => void }) {
+  const { highlighted, ...hover } = useStopHover(stopId)
+  return (
+    <th
+      {...hover}
+      scope="col"
+      className={`border-b border-gray-200 px-2 pt-1 pb-2 text-left align-bottom text-[11px] leading-tight font-medium first:pl-4 ${highlighted ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}
+    >
+      <button type="button" onClick={() => onSelect(stopId)} className="text-left hover:text-gray-900 hover:underline">
+        {name}
+      </button>
+    </th>
   )
 }

@@ -4,6 +4,7 @@ import { Drawer } from 'vaul'
 import { z } from 'zod'
 import { InfoPanel } from '../components/InfoPanel'
 import { TransitMap } from '../components/TransitMap'
+import { HoveredStopProvider } from '../lib/hovered-stop'
 import { getStopHistory, getStopSchedule } from '../lib/stop-details'
 import { useMediaQuery } from '../lib/use-media-query'
 
@@ -37,7 +38,9 @@ function Home() {
   return (
     <main className="h-dvh w-full overflow-hidden bg-gray-100">
       <ClientOnly fallback={<p className="p-6 text-sm text-gray-500">Loading the map…</p>}>
-        <TransitApp />
+        <HoveredStopProvider>
+          <TransitApp />
+        </HoveredStopProvider>
       </ClientOnly>
     </main>
   )

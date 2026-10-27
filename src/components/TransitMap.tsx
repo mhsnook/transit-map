@@ -7,6 +7,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { FeatureCollection, LineString, Point } from 'geojson'
 import type { ExpressionSpecification, FilterSpecification, PaddingOptions } from 'maplibre-gl'
 import { getLiveDb } from '../live/db'
+import { useHoveredStop } from '../lib/hovered-stop'
 import { useNow } from '../lib/use-now'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
@@ -49,6 +50,7 @@ export function TransitMap({
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const now = useNow(1000)
   const [hovering, setHovering] = useState(false)
+  const { stopId: hoveredStop, setStopId: setHoveredStop } = useHoveredStop()
   const [mapLoaded, setMapLoaded] = useState(false)
 
   const routeColor = useMemo(() => new Map(busRoutes.map((r) => [r.id, r.color])), [busRoutes])
@@ -180,8 +182,17 @@ export function TransitMap({
       onLoad={() => setMapLoaded(true)}
       interactiveLayerIds={['transit-vehicle-targets', 'bus-stop-targets', 'route-pattern-targets']}
       cursor={hovering ? 'pointer' : 'grab'}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+      onMouseMove={(event) => {
+        const features = event.features ?? []
+        setHovering(features.length > 0)
+        const onBus = features.some((f) => f.layer.id === 'transit-vehicle-targets')
+        const stopId = features.find((f) => f.layer.id === 'bus-stop-targets')?.properties?.id
+        setHoveredStop(!onBus && typeof stopId === 'string' ? stopId : null)
+      }}
+      onMouseLeave={() => {
+        setHovering(false)
+        setHoveredStop(null)
+      }}
       onClick={(event) => {
         const features = event.features ?? []
         // buses sit on bus stops and lines, and bus stops on lines; the one on top wins
@@ -228,6 +239,17 @@ export function TransitMap({
             'circle-color': 'white',
             'circle-stroke-color': '#444',
             'circle-stroke-width': 1,
+          }}
+        />
+        <Layer
+          id="hovered-bus-stop"
+          type="circle"
+          filter={['==', ['get', 'id'], hoveredStop ?? '']}
+          paint={{
+            'circle-radius': 8,
+            'circle-color': 'white',
+            'circle-stroke-color': '#111',
+            'circle-stroke-width': 3,
           }}
         />
         <Layer

@@ -3,6 +3,7 @@ import { useLiveQuery } from '@tanstack/react-db'
 import type { BusRoute, BusStop, NewestPositionFix } from '../live/collections'
 import { getLiveDb } from '../live/db'
 import { formatClockAt, formatGtfsTime, gtfsMinutes } from '../lib/charlottesville-time'
+import { useStopHover } from '../lib/hovered-stop'
 import { lateLabelAt, vendorScheduleLabel } from '../lib/schedule-label'
 import { CloseButton } from './CloseButton'
 import { PredictionTime } from './PredictionTime'
@@ -74,10 +75,9 @@ export function BusPanel({
         ) : (
           <ul className="divide-y divide-gray-100">
             {upcoming.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-2">
-                <StopButton name={stopName(p.stop_id)} onClick={() => onSelectStop(p.stop_id)} />
+              <StopRow key={p.id} stopId={p.stop_id} name={stopName(p.stop_id)} onSelect={onSelectStop}>
                 <PredictionTime predictedAt={p.predicted_at} dueAt={p.slot_at} now={now} />
-              </li>
+              </StopRow>
             ))}
           </ul>
         )}
@@ -88,8 +88,7 @@ export function BusPanel({
         ) : (
           <ul className="divide-y divide-gray-100">
             {recent.map((a) => (
-              <li key={a.id} className="flex items-center gap-3 px-4 py-2">
-                <StopButton name={stopName(a.stop_id)} onClick={() => onSelectStop(a.stop_id)} />
+              <StopRow key={a.id} stopId={a.stop_id} name={stopName(a.stop_id)} onSelect={onSelectStop}>
                 <span className="shrink-0 text-right tabular-nums">
                   <span className="block">{a.slot_at == null ? 'unscheduled' : lateLabelAt(a.arrived_at, a.slot_at)}</span>
                   <span className="block text-xs text-gray-500">
@@ -97,7 +96,7 @@ export function BusPanel({
                     {a.slot_at != null && ` · due ${formatClockAt(a.slot_at)}`}
                   </span>
                 </span>
-              </li>
+              </StopRow>
             ))}
           </ul>
         )}
@@ -113,10 +112,28 @@ export function BusPanel({
   )
 }
 
-function StopButton({ name, onClick }: { name: string; onClick: () => void }) {
+function StopRow({
+  stopId,
+  name,
+  onSelect,
+  children,
+}: {
+  stopId: string
+  name: string
+  onSelect: (stopId: string) => void
+  children: React.ReactNode
+}) {
+  const { highlighted, ...hover } = useStopHover(stopId)
   return (
-    <button type="button" onClick={onClick} className="min-w-0 flex-1 truncate text-left hover:underline">
-      {name}
-    </button>
+    <li {...hover} className={`flex items-center gap-3 px-4 py-2 ${highlighted ? 'bg-gray-100' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onSelect(stopId)}
+        className="min-w-0 flex-1 truncate text-left hover:underline"
+      >
+        {name}
+      </button>
+      {children}
+    </li>
   )
 }
