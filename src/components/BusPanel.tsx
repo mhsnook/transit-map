@@ -2,8 +2,10 @@ import { eq } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
 import type { BusRoute, BusStop, NewestPositionFix } from '../live/collections'
 import { getLiveDb } from '../live/db'
-import { formatClockAt, formatGtfsTime } from '../lib/charlottesville-time'
-import { lateLabel, minutesLate, scheduleLabel } from '../lib/schedule-label'
+import { formatClockAt, formatGtfsTime, gtfsMinutes } from '../lib/charlottesville-time'
+import { lateLabelAt, vendorScheduleLabel } from '../lib/schedule-label'
+import { CloseButton } from './CloseButton'
+import { PredictionTime } from './PredictionTime'
 import { RouteChip } from './RouteChip'
 
 const RECENT_MS = 90 * 60_000
@@ -35,14 +37,20 @@ export function BusPanel({
     (q) => q.from({ a: live.todaysArrivals }).where(({ a }) => eq(a.equipment_id, equipmentId)),
     [equipmentId],
   )
+  const { data: vendorTrip } = useLiveQuery(
+    (q) => q.from({ t: live.timetableStops }).where(({ t }) => eq(t.trip_id, fix?.trip_id ?? '')),
+    [fix?.trip_id],
+  )
   const route = fix?.route_id == null ? undefined : routesById.get(fix.route_id)
   const upcoming = predictions
     .filter((p) => p.predicted_at >= now - 60_000)
     .sort((a, b) => a.predicted_at - b.predicted_at)
   const recent = arrivals.filter((a) => a.arrived_at >= now - RECENT_MS).sort((a, b) => b.arrived_at - a.arrived_at)
   const stopName = (stopId: string) => stopsById.get(stopId)?.name ?? `Stop ${stopId}`
-  // the feed vendor's schedule number starts with its trip's start time
-  const vendorTrip = fix?.schedule_number?.split('-')[0]
+  const vendorTripStart = vendorTrip.reduce<string | undefined>(
+    (first, t) => (first == null || gtfsMinutes(t.departure_time) < gtfsMinutes(first) ? t.departure_time : first),
+    undefined,
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -56,14 +64,7 @@ export function BusPanel({
               : 'Not running now'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close bus"
-          className="grid size-8 shrink-0 place-items-center rounded-full text-gray-500 hover:bg-gray-100"
-        >
-          ✕
-        </button>
+        <CloseButton label="Close bus" onClick={onClose} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-6 text-sm">
@@ -72,21 +73,12 @@ export function BusPanel({
           <p className="px-4 py-3 text-gray-500">No arrival predictions for this bus right now.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {upcoming.map((p) => {
-              const away = Math.round((p.predicted_at - now) / 60_000)
-              return (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-2">
-                  <StopButton name={stopName(p.stop_id)} onClick={() => onSelectStop(p.stop_id)} />
-                  <span className="shrink-0 text-right tabular-nums">
-                    <span className="block font-semibold">{away <= 0 ? 'Due' : `${away} min`}</span>
-                    <span className="block text-xs text-gray-500">
-                      {formatClockAt(p.predicted_at)}
-                      {p.slot_at != null && ` · ${lateLabel(minutesLate(p.predicted_at, p.slot_at))}`}
-                    </span>
-                  </span>
-                </li>
-              )
-            })}
+            {upcoming.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 px-4 py-2">
+                <StopButton name={stopName(p.stop_id)} onClick={() => onSelectStop(p.stop_id)} />
+                <PredictionTime predictedAt={p.predicted_at} dueAt={p.slot_at} now={now} />
+              </li>
+            ))}
           </ul>
         )}
 
@@ -99,7 +91,7 @@ export function BusPanel({
               <li key={a.id} className="flex items-center gap-3 px-4 py-2">
                 <StopButton name={stopName(a.stop_id)} onClick={() => onSelectStop(a.stop_id)} />
                 <span className="shrink-0 text-right tabular-nums">
-                  <span className="block">{a.slot_at == null ? 'unscheduled' : lateLabel(minutesLate(a.arrived_at, a.slot_at))}</span>
+                  <span className="block">{a.slot_at == null ? 'unscheduled' : lateLabelAt(a.arrived_at, a.slot_at)}</span>
                   <span className="block text-xs text-gray-500">
                     {formatClockAt(a.arrived_at)}
                     {a.slot_at != null && ` · due ${formatClockAt(a.slot_at)}`}
@@ -110,10 +102,10 @@ export function BusPanel({
           </ul>
         )}
 
-        {fix && vendorTrip && (
+        {fix && vendorTripStart && (
           <p className="px-4 pt-4 text-xs text-gray-500">
-            The feed vendor has this bus on its {formatGtfsTime(vendorTrip)} trip, {scheduleLabel(fix.on_schedule)}.
-            Lateness here is against when a bus was due at each stop.
+            The feed vendor has this bus on its {formatGtfsTime(vendorTripStart)} trip,{' '}
+            {vendorScheduleLabel(fix.on_schedule)}. Lateness here is against when a bus was due at each stop.
           </p>
         )}
       </div>

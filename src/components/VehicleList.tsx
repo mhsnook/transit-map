@@ -1,5 +1,8 @@
-import type { BusRoute, NewestPositionFix, TodaysArrival } from '../live/collections'
-import { lateLabel, minutesLate, scheduleLabel } from '../lib/schedule-label'
+import { useLiveQuery } from '@tanstack/react-db'
+import { useMemo } from 'react'
+import type { BusRoute, NewestPositionFix } from '../live/collections'
+import { getLiveDb } from '../live/db'
+import { lateLabelAt, vendorScheduleLabel } from '../lib/schedule-label'
 import { RouteChip } from './RouteChip'
 
 // Older than this, a bus's last observed arrival no longer says how late it is.
@@ -8,17 +11,26 @@ const LATEST_ARRIVAL_MS = 30 * 60_000
 export function VehicleList({
   fixes,
   routesById,
-  latestArrivals,
   now,
   onSelectBus,
 }: {
   fixes: NewestPositionFix[]
   routesById: Map<number, BusRoute>
-  // each bus's newest observed arrival with a matched slot
-  latestArrivals: Map<string, TodaysArrival>
   now: number
   onSelectBus: (equipmentId: string) => void
 }) {
+  const live = getLiveDb()
+  const { data: arrivals } = useLiveQuery((q) => q.from({ a: live.todaysArrivals }))
+  // each bus's newest observed arrival that has a matched slot
+  const latest = useMemo(() => {
+    const byBus = new Map<string, { arrivedAt: number; slotAt: number }>()
+    for (const a of arrivals) {
+      if (a.slot_at == null || a.arrived_at <= (byBus.get(a.equipment_id)?.arrivedAt ?? 0)) continue
+      byBus.set(a.equipment_id, { arrivedAt: a.arrived_at, slotAt: a.slot_at })
+    }
+    return byBus
+  }, [arrivals])
+
   if (fixes.length === 0) {
     return <p className="px-4 py-6 text-sm text-gray-500">No buses are running right now.</p>
   }
@@ -29,11 +41,11 @@ export function VehicleList({
     <ul className="divide-y divide-gray-100">
       {sorted.map((fix) => {
         const route = fix.route_id == null ? undefined : routesById.get(fix.route_id)
-        const arrival = latestArrivals.get(fix.equipment_id)
+        const arrival = latest.get(fix.equipment_id)
         const lateness =
-          arrival && arrival.slot_at != null && now - arrival.arrived_at <= LATEST_ARRIVAL_MS
-            ? lateLabel(minutesLate(arrival.arrived_at, arrival.slot_at))
-            : scheduleLabel(fix.on_schedule)
+          arrival && now - arrival.arrivedAt <= LATEST_ARRIVAL_MS
+            ? lateLabelAt(arrival.arrivedAt, arrival.slotAt)
+            : `${vendorScheduleLabel(fix.on_schedule)} (vendor)`
         return (
           <li key={fix.equipment_id}>
             <button

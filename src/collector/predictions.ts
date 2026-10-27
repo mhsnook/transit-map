@@ -3,7 +3,8 @@ import { charlottesvilleClockNear, clockMinutes } from '../lib/charlottesville-t
 import { JSON_API_BASE } from './feeds'
 import type { currentArrivalPredictions } from './schema'
 
-export type CurrentArrivalPredictionRow = typeof currentArrivalPredictions.$inferSelect
+// The collector adds the matched slot when it syncs these to the live collection.
+export type CurrentArrivalPredictionRow = Omit<typeof currentArrivalPredictions.$inferSelect, 'slot_at'>
 
 // One request covers every bus stop. Without noLimit the feed vendor caps
 // each bus stop at five, which at a hub reaches only about ten minutes out.
@@ -66,7 +67,6 @@ function predictionRows(etas: z.infer<typeof eta>[], receivedAt: number): Curren
       predicted_at: predictedAt,
       direction: eta.direction ?? null,
       timepoint: eta.timePoint === 1,
-      slot_at: null,
     })
   }
   return [...rows.values()]

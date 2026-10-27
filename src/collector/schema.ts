@@ -201,8 +201,9 @@ export const timetableStops = sqliteTable('timetable_stops', {
   // `${trip_id}:${stop_sequence}`
   id: text().primaryKey(),
   trip_id: text().notNull(),
-  // GTFS trip_short_name, the feed vendor's scheduleNumber; null on rows
-  // stored before it was kept, until the next gtfs.zip parse
+  // GTFS trip_short_name, the feed vendor's scheduleNumber, or '' for a trip
+  // without one; null on rows stored before it was kept, until the next
+  // gtfs.zip parse
   schedule_number: text(),
   route: text().notNull(),
   days: text().notNull(),
@@ -217,6 +218,10 @@ export const timetableStops = sqliteTable('timetable_stops', {
 // Arrival predictions and observed arrivals are made for a scheduled call:
 // one scheduled trip (schedule_number) at one pattern stop at one scheduled
 // time. The schedule number repeats every service day; scheduled_at doesn't.
+
+export function scheduledCallId(call: { schedule_number: string; pattern_stop_id: number; scheduled_at: number }) {
+  return `${call.schedule_number}:${call.pattern_stop_id}:${call.scheduled_at}`
+}
 
 const scheduledCallColumns = {
   schedule_number: text().notNull(),
@@ -311,7 +316,7 @@ export const observedArrivals = sqliteTable(
 // Lateness is measured against the matched slot. Null when there is no
 // scheduled time within MAX_SLOT_DISTANCE_MS.
 export const todaysArrivals = sqliteTable('todays_arrivals', {
-  // `${schedule_number}:${pattern_stop_id}:${scheduled_at}`
+  // scheduledCallId
   id: text().primaryKey(),
   schedule_number: text().notNull(),
   equipment_id: text().notNull(),

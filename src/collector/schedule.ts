@@ -73,7 +73,7 @@ export function parsePublishedSchedule(zip: Uint8Array): PublishedSchedule {
         ...stop,
         id: `${st.trip_id}:${st.stop_sequence}`,
         trip_id: st.trip_id,
-        schedule_number: trip.trip_short_name || null,
+        schedule_number: trip.trip_short_name ?? '',
         headsign: trip.trip_headsign,
         stop_sequence: Number(st.stop_sequence),
       })

@@ -1,6 +1,6 @@
 import type { BusRoute, CurrentArrivalPrediction } from '../live/collections'
 import type { ScheduledStop } from '../collector/schedule'
-import { charlottesvilleMidnight, gtfsMinutes, upcomingServiceDays } from './charlottesville-time'
+import { DAY_MS, scheduledInstant, serviceDaysAround } from './charlottesville-time'
 
 export type UpcomingCall = {
   key: string
@@ -13,7 +13,6 @@ export type UpcomingCall = {
   timepoint: boolean
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000
 
 // Arrival predictions, and the scheduled stops that have none, soonest first.
 // Predictions name a bus route by its JSON API id and scheduled stops by its
@@ -35,21 +34,12 @@ export function upcomingCalls({
   limit: number
 }): UpcomingCall[] {
   const routesByShortName = new Map([...routesById.values()].map((r) => [r.short_name, r]))
-  const [today, tomorrow] = upcomingServiceDays(now)
-  const midnight = charlottesvilleMidnight(now)
-  // yesterday's service can run past midnight
-  const serviceDays = [
-    { weekday: (today.weekday + 6) % 7, start: midnight - DAY_MS },
-    { weekday: today.weekday, start: midnight },
-    { weekday: tomorrow.weekday, start: midnight + DAY_MS },
-  ]
-
   const scheduled = new Map<string, UpcomingCall>()
-  for (const day of serviceDays) {
+  for (const day of serviceDaysAround(now)) {
     for (const s of scheduledStops) {
       if (s.days[day.weekday] === '-') continue
       // matched slots are measured from arrival times
-      const at = day.start + gtfsMinutes(s.arrival_time) * 60_000
+      const at = scheduledInstant(day.start, s.arrival_time)
       if (at < now || at > now + DAY_MS) continue
       const key = `${s.route}@${at}`
       if (scheduled.has(key)) continue

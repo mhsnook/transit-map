@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { scheduledCallId } from '../collector/schema'
 import type { ScheduledCallHistory } from '../collector/stop-details'
 import type { BusRoute } from '../live/collections'
 import { charlottesvilleMinutes, formatClockAt, formatMinutes } from '../lib/charlottesville-time'
@@ -329,7 +330,7 @@ function ArrivalTable({ observed, routesById }: { observed: Observed[]; routesBy
             const predicted = o.predictedAt.get(lead)
             return (
               <tr
-                key={`${o.call.schedule_number}:${o.call.pattern_stop_id}:${o.call.scheduled_at}`}
+                key={scheduledCallId(o.call)}
                 className="border-t border-gray-100"
               >
                 <td className="py-1.5 whitespace-nowrap">{dayFormat.format(o.scheduledAt)}</td>

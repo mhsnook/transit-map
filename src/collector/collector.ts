@@ -1,6 +1,7 @@
 import { drizzle, type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
-import { and, desc, eq, isNull, lt } from 'drizzle-orm'
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm'
+import type { WriteBatch, WriteEvent } from 'party-db'
 import { PartyDbServer } from 'party-db/server'
 import {
   busRouteCollection,
@@ -126,7 +127,7 @@ export class Collector extends PartyDbServer<Env> {
         this.#checkScheduleIfDue(),
       ])
       await this.#syncPredictions()
-      await this.#pruneIfDue()
+      this.#pruneIfDue()
     } catch (error) {
       console.error('collector tick failed', error)
     }
@@ -148,10 +149,11 @@ export class Collector extends PartyDbServer<Env> {
     const { fixes, predictions } = polled.value
     // a scheduled call has to be watched before a fix can arrive at it
     this.#arrivals.predicted(predictions, Date.now())
-    await this.#recordArrivals(fixes)
     this.#recordVehiclePredictions(predictions)
     this.#vehiclePredictions = predictions
-    await this.#syncNewestFixes(fixes)
+    const batches = [this.#newestFixesBatch(fixes), this.#todaysArrivalsBatch(fixes)]
+    const changed = batches.filter((b) => b.ops.length > 0)
+    if (changed.length > 0) await this.commit(changed)
   }
 
   // get_vehicles only predicts each transit vehicle's next five bus stops,
@@ -294,14 +296,13 @@ export class Collector extends PartyDbServer<Env> {
 
   // Transit vehicles that leave the feed are deleted; a fix is only written
   // when it is newer than the one held.
-  async #syncNewestFixes(fixes: NewestPositionFixRow[]) {
-    const batch = syncBatch(
+  #newestFixesBatch(fixes: NewestPositionFixRow[]) {
+    return syncBatch(
       newestPositionFixCollection,
       this.db.select().from(schema.newestPositionFixes).all(),
       fixes,
       (prev, fix) => fix.fix_time > prev.fix_time,
     )
-    if (batch.ops.length > 0) await this.commit([batch])
   }
 
   // Where both sources predict a scheduled call, get_vehicles wins.
@@ -327,7 +328,7 @@ export class Collector extends PartyDbServer<Env> {
   #recordVehiclePredictions(predictions: CurrentArrivalPredictionRow[]) {
     const madeAt = Date.now()
     const seen = new Set<string>()
-    for (const { id, slot_at: _, ...prediction } of predictions) {
+    for (const { id, ...prediction } of predictions) {
       seen.add(id)
       const signature = `${prediction.predicted_at}|${prediction.scheduled_at}|${prediction.equipment_id}`
       if (this.#recordedPredictions.get(id) === signature) continue
@@ -338,11 +339,13 @@ export class Collector extends PartyDbServer<Env> {
   }
 
   // Every rule that fires goes to observed_arrivals; the first one for a
-  // scheduled call, which is the earliest, also goes to todays_arrivals.
-  async #recordArrivals(fixes: NewestPositionFixRow[]) {
+  // scheduled call, which is the earliest, also goes to todays_arrivals,
+  // whose rows past their window go in the same batch.
+  #todaysArrivalsBatch(fixes: NewestPositionFixRow[]): WriteBatch<schema.TodaysArrival> {
     const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
     const match = this.#slotMatcher()
-    const todays = new Map<string, schema.TodaysArrival>()
+    const t = schema.todaysArrivals
+    const inserts = new Map<string, schema.TodaysArrival>()
     for (const arrival of this.#arrivals.observe(fixes, stops)) {
       const slot = match(arrival.route_id, arrival.schedule_number, arrival.stop_id, arrival.arrived_at)
       this.db
@@ -350,10 +353,9 @@ export class Collector extends PartyDbServer<Env> {
         .values({ ...arrival, slot_at: slot?.slot_at ?? null })
         .onConflictDoNothing()
         .run()
-      const id = `${arrival.schedule_number}:${arrival.pattern_stop_id}:${arrival.scheduled_at}`
-      if (todays.has(id)) continue
-      if (this.db.select({ id: schema.todaysArrivals.id }).from(schema.todaysArrivals).where(eq(schema.todaysArrivals.id, id)).get()) continue
-      todays.set(id, {
+      const id = schema.scheduledCallId(arrival)
+      if (inserts.has(id) || this.db.select({ id: t.id }).from(t).where(eq(t.id, id)).get()) continue
+      inserts.set(id, {
         id,
         schedule_number: arrival.schedule_number,
         equipment_id: arrival.equipment_id,
@@ -364,11 +366,22 @@ export class Collector extends PartyDbServer<Env> {
         timepoint: slot?.timepoint ?? false,
       })
     }
-    if (todays.size > 0) {
-      await this.commit([
-        { channel: todaysArrivalCollection.name, ops: [...todays.values()].map((value) => ({ type: 'insert', value })) },
-      ])
-    }
+    const now = Date.now()
+    const expired = this.db
+      .select()
+      .from(t)
+      .where(
+        or(
+          and(eq(t.timepoint, true), lt(t.arrived_at, now - TODAYS_TIMEPOINTS_MS)),
+          and(eq(t.timepoint, false), lt(t.arrived_at, now - TODAYS_OTHER_STOPS_MS)),
+        ),
+      )
+      .all()
+    const ops: WriteEvent<schema.TodaysArrival>[] = [
+      ...[...inserts.values()].map((value) => ({ type: 'insert' as const, value })),
+      ...expired.map((value) => ({ type: 'delete' as const, value })),
+    ]
+    return { channel: todaysArrivalCollection.name, ops }
   }
 
   // Bus routes are matched by short name: the JSON API's route ids are not
@@ -381,7 +394,7 @@ export class Collector extends PartyDbServer<Env> {
           .selectDistinct({ schedule_number: schema.timetableStops.schedule_number, direction: schema.timetableStops.direction })
           .from(schema.timetableStops)
           .all()
-          .filter((t) => t.schedule_number != null)
+          .filter((t) => t.schedule_number)
           .map((t) => [t.schedule_number!, t.direction]),
       ),
     )
@@ -537,7 +550,7 @@ export class Collector extends PartyDbServer<Env> {
     }
   }
 
-  async #pruneIfDue() {
+  #pruneIfDue() {
     const now = Date.now()
     if (now - this.#lastPrunedAt < PRUNE_EVERY_MS) return
     this.#lastPrunedAt = now
@@ -546,16 +559,6 @@ export class Collector extends PartyDbServer<Env> {
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
     this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
     this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
-    const expired = this.db
-      .select()
-      .from(schema.todaysArrivals)
-      .all()
-      .filter((a) => a.arrived_at < now - (a.timepoint ? TODAYS_TIMEPOINTS_MS : TODAYS_OTHER_STOPS_MS))
-    if (expired.length > 0) {
-      await this.commit([
-        { channel: todaysArrivalCollection.name, ops: expired.map((value) => ({ type: 'delete', value })) },
-      ])
-    }
   }
 }
 

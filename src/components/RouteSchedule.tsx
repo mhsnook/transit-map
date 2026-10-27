@@ -11,8 +11,8 @@ import {
   gtfsMinutes,
   upcomingServiceDays,
 } from '../lib/charlottesville-time'
-import { lateLabel, minutesLate } from '../lib/schedule-label'
-import { arrivalKey, timepointArrivals, tripOutcomes, type TripOutcome } from '../lib/trip-outcomes'
+import { lateLabel, lateLabelAt } from '../lib/schedule-label'
+import { arrivalAt, timepointArrivals, tripOutcomes, type TripOutcome } from '../lib/trip-outcomes'
 
 type Column = { key: string; stopId: string }
 type Run = {
@@ -103,12 +103,17 @@ export function RouteSchedule({
     [route.id],
   )
   const arrivals = useMemo(() => timepointArrivals(todays), [todays])
-  const running = new Set(fixes.map((f) => f.equipment_id))
+  const running = useMemo(() => new Set(fixes.map((f) => f.equipment_id)), [fixes])
 
   const isToday = dayIndex === 0
   const nowMinutes = charlottesvilleMinutes(now)
   const midnight = charlottesvilleMidnight(now)
-  const outcomes = isToday && dir ? tripOutcomes(dir.runs, arrivals, midnight, now) : new Map<string, TripOutcome>()
+  // trips settle on the minute, so the per-second clock needn't recompute this
+  const minute = Math.floor(now / 60_000)
+  const outcomes = useMemo(
+    () => (isToday && dir ? tripOutcomes(dir.runs, arrivals, midnight, minute * 60_000) : new Map<string, TripOutcome>()),
+    [isToday, dir, arrivals, midnight, minute],
+  )
   const nextRun = isToday ? dir?.runs.find((r) => r.first >= nowMinutes) : undefined
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -203,14 +208,13 @@ export function RouteSchedule({
                   >
                     {dir.columns.map((c) => {
                       const stop = run.cells.get(c.key)
-                      const slotAt = stop && midnight + gtfsMinutes(stop.arrival_time) * 60_000
-                      const arrival = isToday && stop ? arrivals.get(arrivalKey(stop.stop_id, slotAt!)) : undefined
+                      const { arrival, dueAt } = isToday && stop ? arrivalAt(arrivals, stop, midnight) : {}
                       return (
                         <td
                           key={c.key}
                           title={
                             arrival &&
-                            `Bus ${arrival.equipment_id} arrived ${formatClockAt(arrival.arrived_at)}, ${lateLabel(minutesLate(arrival.arrived_at, slotAt!))}`
+                            `Bus ${arrival.equipment_id} arrived ${formatClockAt(arrival.arrived_at)}, ${lateLabelAt(arrival.arrived_at, dueAt!)}`
                           }
                           className="border-b border-gray-100 px-2 py-1.5 whitespace-nowrap first:pl-4"
                         >
@@ -222,7 +226,17 @@ export function RouteSchedule({
                       <td
                         className={`sticky right-0 border-b border-l border-gray-100 px-2 py-1.5 pr-4 text-xs font-normal whitespace-nowrap ${next ? 'bg-amber-50' : 'bg-white'}`}
                       >
-                        {outcome && <OutcomeLabel outcome={outcome} running={running} color={route.color} />}
+                        {outcome && (
+                          <OutcomeLabel
+                            outcome={outcome}
+                            live={
+                              outcome.kind !== 'skipped' &&
+                              running.has(outcome.equipmentId) &&
+                              (outcome.kind === 'started' || !outcome.done)
+                            }
+                            color={route.color}
+                          />
+                        )}
                       </td>
                     )}
                   </tr>
@@ -236,17 +250,8 @@ export function RouteSchedule({
   )
 }
 
-function OutcomeLabel({
-  outcome,
-  running,
-  color,
-}: {
-  outcome: TripOutcome
-  running: Set<string>
-  color: string
-}) {
+function OutcomeLabel({ outcome, live, color }: { outcome: TripOutcome; live: boolean; color: string }) {
   if (outcome.kind === 'skipped') return <span className="text-gray-700 italic">skipped</span>
-  const live = running.has(outcome.equipmentId) && (outcome.kind === 'started' || !outcome.done)
   return (
     <span className="inline-flex items-center gap-1.5 text-gray-700" title={`Bus ${outcome.equipmentId}`}>
       {live && <span className="size-2 animate-pulse rounded-full" style={{ background: color }} />}

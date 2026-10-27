@@ -26,7 +26,7 @@ export function stopSchedule(db: Db, stopId: string): ScheduledStop[] {
 export function stopHistory(db: Db, stopId: string): ScheduledCallHistory[] {
   const calls = new Map<string, ScheduledCallHistory>()
   const callFor = (row: Omit<ScheduledCallHistory, 'predictions' | 'arrivals' | 'slot_at'>) => {
-    const key = `${row.schedule_number}:${row.pattern_stop_id}:${row.scheduled_at}`
+    const key = schema.scheduledCallId(row)
     let call = calls.get(key)
     if (!call) {
       call = {

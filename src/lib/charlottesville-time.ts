@@ -90,8 +90,27 @@ export function charlottesvilleMidnight(at: number): number {
   return Math.floor(at / 60_000) * 60_000 - charlottesvilleMinutes(at) * 60_000
 }
 
-// 0 is Monday, matching the weekday patterns of scheduled stops.
-export function charlottesvilleWeekday(at: number): number {
-  const { year, month, day } = charlottesvilleParts(at)
-  return (new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7
+export const DAY_MS = 24 * 60 * 60 * 1000
+
+export type ServiceDayStart = {
+  // 0 is Monday, matching the weekday patterns of scheduled stops
+  weekday: number
+  // midnight in Charlottesville; off by an hour across a DST change
+  start: number
+}
+
+// Yesterday, today and tomorrow in Charlottesville. Service runs past
+// midnight, so a time near `at` can belong to yesterday's service day.
+export function serviceDaysAround(at: number): ServiceDayStart[] {
+  const { year, month, day, minutes } = charlottesvilleParts(at)
+  const midnight = Math.floor(at / 60_000) * 60_000 - minutes * 60_000
+  return [-1, 0, 1].map((offset) => ({
+    weekday: (new Date(Date.UTC(year, month - 1, day + offset)).getUTCDay() + 6) % 7,
+    start: midnight + offset * DAY_MS,
+  }))
+}
+
+// When a GTFS time falls on the service day that began at `dayStart`.
+export function scheduledInstant(dayStart: number, gtfsTime: string): number {
+  return dayStart + gtfsMinutes(gtfsTime) * 60_000
 }

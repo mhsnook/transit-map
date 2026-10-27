@@ -1,7 +1,6 @@
-import { charlottesvilleMidnight, charlottesvilleWeekday, gtfsMinutes } from '../lib/charlottesville-time'
+import { gtfsMinutes, serviceDaysAround } from '../lib/charlottesville-time'
 import type { ScheduledStop } from './schedule'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 // Further than this from any scheduled time, an arrival has no matched slot.
 export const MAX_SLOT_DISTANCE_MS = 90 * 60_000
 // The matched slot is the latest scheduled time up to this long after the
@@ -37,10 +36,7 @@ export class SlotIndex {
     let latest: MatchedSlot | null = null
     // only when no slot qualifies as latest: a bus more than EARLY_TOLERANCE_MS early
     let earliest: MatchedSlot | null = null
-    // service runs past midnight, so yesterday's service day can hold the slot
-    for (const offset of [-1, 0, 1]) {
-      const start = charlottesvilleMidnight(at) + offset * DAY_MS
-      const weekday = charlottesvilleWeekday(start + DAY_MS / 2)
+    for (const { start, weekday } of serviceDaysAround(at)) {
       for (const slot of slots) {
         if (slot.days[weekday] === '-') continue
         const slotAt = start + slot.minutes * 60_000

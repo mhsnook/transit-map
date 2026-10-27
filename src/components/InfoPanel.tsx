@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
 import { BusPanel } from './BusPanel'
+import { CloseButton } from './CloseButton'
 import { RoutePicker } from './RoutePicker'
 import { RouteSchedule } from './RouteSchedule'
 import { StopList } from './StopList'
@@ -34,7 +35,6 @@ export function InfoPanel({
   const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const { data: routeStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
-  const { data: todaysArrivals } = useLiveQuery((q) => q.from({ a: live.todaysArrivals }))
   const now = useNow(1000)
   const [homeTab, setHomeTab] = useState<'buses' | 'stops'>('buses')
 
@@ -54,14 +54,6 @@ export function InfoPanel({
     for (const list of byStop.values()) list.sort((a, b) => a.id - b.id)
     return byStop
   }, [routeStops, routesById])
-  const latestArrivals = useMemo(() => {
-    const byBus = new Map<string, (typeof todaysArrivals)[number]>()
-    for (const a of todaysArrivals) {
-      const other = byBus.get(a.equipment_id)
-      if (a.slot_at != null && (!other || a.arrived_at > other.arrived_at)) byBus.set(a.equipment_id, a)
-    }
-    return byBus
-  }, [todaysArrivals])
   const route = selectedRoute == null ? undefined : routesById.get(selectedRoute)
   const stop = selectedStop == null ? undefined : stopsById.get(selectedStop)
   const routeFixes = route ? fixes.filter((f) => f.route_id === route.id) : fixes
@@ -120,14 +112,7 @@ export function InfoPanel({
                     : `${routeFixes.length} running now`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => onSelectRoute(null)}
-                aria-label="Close route"
-                className="grid size-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100"
-              >
-                ✕
-              </button>
+              <CloseButton label="Close route" onClick={() => onSelectRoute(null)} />
             </div>
             <RouteSchedule
               route={route}
@@ -163,7 +148,6 @@ export function InfoPanel({
                 <VehicleList
                   fixes={fixes}
                   routesById={routesById}
-                  latestArrivals={latestArrivals}
                   now={now}
                   onSelectBus={onSelectBus}
                 />

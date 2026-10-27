@@ -8,6 +8,8 @@ import { getLiveDb } from '../live/db'
 import { formatClockAt } from '../lib/charlottesville-time'
 import { watchStop } from '../lib/stop-details'
 import { upcomingCalls, type UpcomingCall } from '../lib/stop-upcoming'
+import { CloseButton } from './CloseButton'
+import { PredictionTime } from './PredictionTime'
 import { RouteChip } from './RouteChip'
 import { StopHistory } from './StopHistory'
 
@@ -54,14 +56,7 @@ export function StopPanel({
             ))}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close bus stop"
-          className="grid size-8 shrink-0 place-items-center rounded-full text-gray-500 hover:bg-gray-100"
-        >
-          ✕
-        </button>
+        <CloseButton label="Close bus stop" onClick={onClose} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-6">
@@ -153,12 +148,6 @@ function Upcoming({
 }
 
 function UpcomingRow({ call, now }: { call: UpcomingCall; now: number }) {
-  const minutesAway = call.predictedAt == null ? null : Math.round((call.predictedAt - now) / 60_000)
-  const deviation =
-    call.predictedAt == null || call.scheduledAt == null
-      ? null
-      : Math.round((call.predictedAt - call.scheduledAt) / 60_000)
-
   return (
     <li className="flex items-center gap-3 px-4 py-2 text-sm">
       <RouteChip route={call.route} />
@@ -170,33 +159,17 @@ function UpcomingRow({ call, now }: { call: UpcomingCall; now: number }) {
             : `Bus ${call.equipmentId} · ${formatClockAt(call.scheduledAt!)} scheduled`}
         </span>
       </span>
-      <span className="shrink-0 text-right tabular-nums">
-        {minutesAway == null ? (
-          <span
-            className="text-gray-600"
-            title={call.timepoint ? undefined : 'The feed vendor’s estimate between timepoints'}
-          >
-            {call.timepoint ? '' : '~'}
-            {formatClockAt(call.scheduledAt!)}
-          </span>
-        ) : (
-          <>
-            <span className="flex items-center justify-end gap-1.5 font-semibold">
-              <span aria-hidden className="size-2 animate-pulse rounded-full bg-emerald-500" />
-              {minutesAway <= 0 ? 'Due' : `${minutesAway} min`}
-            </span>
-            <span className="block text-xs text-gray-500">
-              {formatClockAt(call.predictedAt!)}
-              {deviation != null && ` · ${deviationLabel(deviation)}`}
-            </span>
-          </>
-        )}
-      </span>
+      {call.predictedAt == null ? (
+        <span
+          className="shrink-0 text-gray-600 tabular-nums"
+          title={call.timepoint ? undefined : 'The feed vendor’s estimate between timepoints'}
+        >
+          {call.timepoint ? '' : '~'}
+          {formatClockAt(call.scheduledAt!)}
+        </span>
+      ) : (
+        <PredictionTime predictedAt={call.predictedAt} dueAt={call.scheduledAt} now={now} />
+      )}
     </li>
   )
-}
-
-export function deviationLabel(minutes: number): string {
-  if (minutes === 0) return 'on time'
-  return minutes > 0 ? `${minutes} min late` : `${-minutes} min early`
 }
