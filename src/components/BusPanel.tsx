@@ -1,6 +1,5 @@
 import { eq, inArray } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
-import { distanceMeters } from '../collector/arrivals'
 import { scheduledCallId } from '../collector/schema'
 import type { BusRoute, BusStop, NewestPositionFix, TodaysArrival } from '../live/collections'
 import { getLiveDb } from '../live/db'
@@ -14,9 +13,6 @@ import { RouteChip } from './RouteChip'
 const PREVIOUS_STOPS = 5
 // so a bus back from a break doesn't list stops from before it
 const PREVIOUS_WITHIN_MS = 90 * 60_000
-// A bus parked for a layover can be further from the stop's pin than an
-// arrival needs (ARRIVAL_RADIUS_M).
-const STILL_HERE_M = 60
 
 export function BusPanel({
   equipmentId,
@@ -73,17 +69,14 @@ export function BusPanel({
   const upcomingAll = predictions
     .filter((p) => p.predicted_at >= now - 60_000)
     .sort((a, b) => a.predicted_at - b.predicted_at)
-  // The feed vendor never predicts early, so it can keep predicting a call
-  // the bus has already passed; only a bus still at the stop is waiting there.
-  const atStop = (stopId: string) => {
-    const stop = stopsById.get(stopId)
-    if (!fix || !stop) return false
-    return (fix.at_stop && fix.last_stop_id === stopId) || distanceMeters(fix, stop) <= STILL_HERE_M
-  }
-  const here = recent
-    .map((arrival) => ({ arrival, prediction: upcomingAll.find((p) => scheduledCallId(p) === arrival.id) }))
-    .filter(({ arrival, prediction }) => prediction && atStop(arrival.stop_id))
-    .at(-1)
+  // The latest stop the bus has reached and not left. The feed vendor never
+  // predicts early, so it can keep predicting a stop an early bus has left;
+  // a still-predicted stop isn't one the bus is still at.
+  const last = recent.at(-1)
+  const here =
+    fix && last && last.departed_at == null
+      ? { arrival: last, prediction: upcomingAll.find((p) => scheduledCallId(p) === last.id) }
+      : undefined
   const reached = new Set(recent.map((a) => a.id))
   const previous = recent.filter((a) => a !== here?.arrival)
   const upcoming = upcomingAll.filter((p) => !reached.has(scheduledCallId(p)))
@@ -112,15 +105,7 @@ export function BusPanel({
         <ul className="divide-y divide-gray-100">
           {previous.map((a) => (
             <StopRow key={a.id} stopId={a.stop_id} name={stopName(a.stop_id)} onSelect={onSelectStop} past>
-              <span className="shrink-0 text-right tabular-nums">
-                <span className="block">
-                  {a.slot_at == null ? 'unscheduled' : isLayover(a) ? 'layover' : lateLabelAt(a.arrived_at, a.slot_at)}
-                </span>
-                <span className="block text-xs text-gray-500">
-                  {formatClockAt(a.arrived_at)}
-                  {a.slot_at != null && ` · ${isLayover(a) ? 'due out' : 'due'} ${formatClockAt(a.slot_at)}`}
-                </span>
-              </span>
+              <PastStopTime arrival={a} layover={isLayover(a)} />
             </StopRow>
           ))}
           <li className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium tracking-wide text-gray-500 uppercase">
@@ -132,9 +117,11 @@ export function BusPanel({
             <StopRow stopId={here.arrival.stop_id} name={stopName(here.arrival.stop_id)} onSelect={onSelectStop}>
               <span className="shrink-0 text-right tabular-nums">
                 <span className="block font-semibold">
-                  {here.prediction!.predicted_at <= now
-                    ? 'leaving now'
-                    : `leaves in ${Math.round((here.prediction!.predicted_at - now) / 60_000)} min`}
+                  {!here.prediction
+                    ? 'at the stop'
+                    : here.prediction.predicted_at <= now
+                      ? 'leaving now'
+                      : `leaves in ${Math.round((here.prediction.predicted_at - now) / 60_000)} min`}
                 </span>
                 <span className="block text-xs text-gray-500">here since {formatClockAt(here.arrival.arrived_at)}</span>
               </span>
@@ -187,5 +174,32 @@ function StopRow({
       </button>
       {children}
     </li>
+  )
+}
+
+// At the first stop of its trip a bus early is waiting out a layover, so its
+// departure is what was due.
+function PastStopTime({ arrival: a, layover }: { arrival: TodaysArrival; layover: boolean }) {
+  const held = a.departed_at != null && a.departed_at - a.arrived_at >= 60_000
+  const times = held ? `${formatClockAt(a.arrived_at)}–${formatClockAt(a.departed_at!)}` : formatClockAt(a.arrived_at)
+  if (a.slot_at == null) {
+    return <StopTime top="unscheduled" bottom={times} />
+  }
+  if (layover) {
+    return a.departed_at == null ? (
+      <StopTime top="layover" bottom={`${times} · due out ${formatClockAt(a.slot_at)}`} />
+    ) : (
+      <StopTime top={`left ${lateLabelAt(a.departed_at, a.slot_at)}`} bottom={times} />
+    )
+  }
+  return <StopTime top={lateLabelAt(a.arrived_at, a.slot_at)} bottom={`${times} · due ${formatClockAt(a.slot_at)}`} />
+}
+
+function StopTime({ top, bottom }: { top: string; bottom: string }) {
+  return (
+    <span className="shrink-0 text-right tabular-nums">
+      <span className="block">{top}</span>
+      <span className="block text-xs text-gray-500">{bottom}</span>
+    </span>
   )
 }

@@ -6,6 +6,7 @@ import m0003 from './0003_fix_details_and_timetable.sql';
 import m0004 from './0004_arrival_predictions.sql';
 import m0005 from './0005_prediction_source.sql';
 import m0006 from './0006_matched_slots.sql';
+import m0007 from './0007_observed_departures.sql';
 
   export default {
     journal,
@@ -16,7 +17,8 @@ m0002,
 m0003,
 m0004,
 m0005,
-m0006
+m0006,
+m0007
     }
   }
   

@@ -102,6 +102,10 @@ _Avoid_: ETA (in code), estimate, prediction (alone)
 The first position fix at which a transit vehicle is judged to have reached a bus stop for a scheduled call. Three rules judge it: within 30 m of the bus stop (`distance`), the feed vendor's `atStop` there (`at_stop`), and the feed vendor's last stop reaching it (`passed`); each is recorded.
 _Avoid_: stop event, visit, arrival (alone)
 
+**Observed departure**:
+The first position fix after an observed arrival at which the transit vehicle is clear of the bus stop: more than 50 m from it, or 30 m further than where it arrived, and no longer at that stop by the feed vendor's `atStop`.
+_Avoid_: departure (alone), leave time
+
 **Position staleness**:
 The age of a transit vehicle's newest position fix at the moment it is served or displayed.
 _Avoid_: lag, delay, latency, staleness (alone)

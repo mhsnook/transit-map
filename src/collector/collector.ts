@@ -339,14 +339,16 @@ export class Collector extends PartyDbServer<Env> {
   }
 
   // Every rule that fires goes to observed_arrivals; the first one for a
-  // scheduled call, which is the earliest, also goes to todays_arrivals,
-  // whose rows past their window go in the same batch.
+  // scheduled call, which is the earliest, also goes to todays_arrivals.
+  // Departures go to observed_departures and fill in todays_arrivals, and
+  // todays_arrivals rows past their window are deleted in the same batch.
   #todaysArrivalsBatch(fixes: NewestPositionFixRow[]): WriteBatch<schema.TodaysArrival> {
     const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
     const match = this.#slotMatcher()
     const t = schema.todaysArrivals
     const inserts = new Map<string, schema.TodaysArrival>()
-    for (const arrival of this.#arrivals.observe(fixes, stops)) {
+    const { arrivals, departures } = this.#arrivals.observe(fixes, stops)
+    for (const arrival of arrivals) {
       const slot = match(arrival, arrival.arrived_at)
       this.db
         .insert(schema.observedArrivals)
@@ -362,9 +364,22 @@ export class Collector extends PartyDbServer<Env> {
         route_id: arrival.route_id,
         stop_id: arrival.stop_id,
         arrived_at: arrival.arrived_at,
+        departed_at: null,
         slot_at: slot?.slot_at ?? null,
         timepoint: slot?.timepoint ?? false,
       })
+    }
+    const updates = new Map<string, schema.TodaysArrival>()
+    for (const departure of departures) {
+      this.db.insert(schema.observedDepartures).values(departure).onConflictDoNothing().run()
+      const id = schema.scheduledCallId(departure)
+      const inserted = inserts.get(id)
+      if (inserted) {
+        inserted.departed_at = departure.departed_at
+        continue
+      }
+      const row = this.db.select().from(t).where(eq(t.id, id)).get()
+      if (row && row.departed_at == null) updates.set(id, { ...row, departed_at: departure.departed_at })
     }
     const now = Date.now()
     const expired = this.db
@@ -377,8 +392,10 @@ export class Collector extends PartyDbServer<Env> {
         ),
       )
       .all()
+    for (const row of expired) updates.delete(row.id)
     const ops: WriteEvent<schema.TodaysArrival>[] = [
       ...[...inserts.values()].map((value) => ({ type: 'insert' as const, value })),
+      ...[...updates.values()].map((value) => ({ type: 'update' as const, value })),
       ...expired.map((value) => ({ type: 'delete' as const, value })),
     ]
     return { channel: todaysArrivalCollection.name, ops }
@@ -562,6 +579,7 @@ export class Collector extends PartyDbServer<Env> {
     this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
     this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
     this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
+    this.db.delete(schema.observedDepartures).where(lt(schema.observedDepartures.departed_at, cutoff)).run()
   }
 }
 

@@ -115,25 +115,31 @@ export function TransitMap({
     })
   }, [selectedStop, stops, mapLoaded])
 
-  // Zooms in on a newly selected bus, then follows it only when it leaves the view.
-  const followedBus = useRef<string | null>(null)
+  // A selected bus is followed until the user pans or zooms the map. Following
+  // zooms in on it once, then moves the map only when it leaves the view.
+  const [unfollowedBus, setUnfollowedBus] = useState<string | null>(null)
+  const following = selectedBus != null && unfollowedBus !== selectedBus
+  const centeredOn = useRef<string | null>(null)
+  const follow = () => {
+    centeredOn.current = null
+    setUnfollowedBus(null)
+  }
   const selectedFix = fixes.find((f) => f.equipment_id === selectedBus)
+  useEffect(() => setUnfollowedBus(null), [selectedBus])
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !selectedFix) {
-      if (!selectedBus) followedBus.current = null
-      return
-    }
-    const isNew = followedBus.current !== selectedFix.equipment_id
+    if (!selectedBus) centeredOn.current = null
+    if (!map || !selectedFix || !following) return
+    const isNew = centeredOn.current !== selectedFix.equipment_id
     if (!isNew && inView(map, selectedFix.lng, selectedFix.lat)) return
-    followedBus.current = selectedFix.equipment_id
+    centeredOn.current = selectedFix.equipment_id
     map.easeTo({
       center: [selectedFix.lng, selectedFix.lat],
       zoom: isNew ? Math.max(map.getZoom(), 15) : map.getZoom(),
       padding: fitPadding,
       duration: 600,
     })
-  }, [selectedBus, selectedFix?.lng, selectedFix?.lat, mapLoaded])
+  }, [selectedBus, selectedFix?.lng, selectedFix?.lat, mapLoaded, following])
 
   const selectedStopIds = useMemo(
     () => servedStops.filter((rs) => rs.route_id === selectedRoute).map((rs) => rs.stop_id),
@@ -193,11 +199,18 @@ export function TransitMap({
         setHovering(false)
         setHoveredStop(null)
       }}
+      onMoveStart={(event) => {
+        // only gestures carry an originalEvent; easeTo and fitBounds don't
+        if (event.originalEvent && selectedBus) setUnfollowedBus(selectedBus)
+      }}
       onClick={(event) => {
         const features = event.features ?? []
         // buses sit on bus stops and lines, and bus stops on lines; the one on top wins
         const equipmentId = features.find((f) => f.layer.id === 'transit-vehicle-targets')?.properties?.equipment_id
-        if (typeof equipmentId === 'string') return onSelectBus(equipmentId)
+        if (typeof equipmentId === 'string') {
+          if (equipmentId === selectedBus) follow()
+          return onSelectBus(equipmentId)
+        }
         const stopId = features.find((f) => f.layer.id === 'bus-stop-targets')?.properties?.id
         if (typeof stopId === 'string') return onSelectStop(stopId)
         const routeId = features[0]?.properties?.route_id
@@ -317,6 +330,15 @@ export function TransitMap({
         />
         <Layer id="transit-vehicle-targets" type="circle" paint={{ 'circle-radius': 16, 'circle-opacity': 0 }} />
       </Source>
+      {selectedFix && !following && (
+        <button
+          type="button"
+          onClick={follow}
+          className="absolute top-3 left-3 rounded-full bg-white px-3 py-1.5 text-sm font-medium shadow-md ring-1 ring-gray-200 hover:bg-gray-50"
+        >
+          Follow bus {selectedFix.equipment_id}
+        </button>
+      )}
     </MapGL>
   )
 }

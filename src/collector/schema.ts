@@ -305,6 +305,23 @@ export const observedArrivals = sqliteTable(
   ],
 )
 
+// The first position fix after a scheduled call's observed arrival at which
+// the bus is clear of the stop (see arrivals.ts). One row per call.
+export const observedDepartures = sqliteTable(
+  'observed_departures',
+  {
+    ...scheduledCallColumns,
+    departed_at: integer().notNull(),
+    // the last fix before departed_at still at the stop: the bus left between the two
+    last_near_at: integer().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.schedule_number, t.pattern_stop_id, t.scheduled_at] }),
+    index('observed_departures_stop').on(t.stop_id, t.scheduled_at),
+    index('observed_departures_departed_at').on(t.departed_at),
+  ],
+)
+
 // Each scheduled call's observed arrival, for the stop and bus views and the
 // timetable: timepoints for 20 hours, other bus stops for 2.
 //
@@ -323,6 +340,8 @@ export const todaysArrivals = sqliteTable('todays_arrivals', {
   route_id: integer().notNull(),
   stop_id: text().notNull(),
   arrived_at: integer().notNull(),
+  // null while the bus is still at the stop
+  departed_at: integer(),
   slot_at: integer(),
   timepoint: integer({ mode: 'boolean' }).notNull(),
 })
