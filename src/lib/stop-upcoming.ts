@@ -1,6 +1,6 @@
 import type { BusRoute, CurrentArrivalPrediction } from '../live/collections'
 import type { ScheduledStop } from '../collector/schedule'
-import { charlottesvilleMidnight, gtfsMinutes, upcomingServiceDays } from './charlottesville-time'
+import { DAY_MS, scheduledInstant, serviceDaysAround } from './charlottesville-time'
 
 export type UpcomingCall = {
   key: string
@@ -13,11 +13,11 @@ export type UpcomingCall = {
   timepoint: boolean
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000
 
 // Arrival predictions, and the scheduled stops that have none, soonest first.
 // Predictions name a bus route by its JSON API id and scheduled stops by its
-// short name, so the two are matched on short name and scheduled minute.
+// short name, so the two are matched on short name and the prediction's
+// matched slot.
 export function upcomingCalls({
   now,
   predictions,
@@ -34,20 +34,12 @@ export function upcomingCalls({
   limit: number
 }): UpcomingCall[] {
   const routesByShortName = new Map([...routesById.values()].map((r) => [r.short_name, r]))
-  const [today, tomorrow] = upcomingServiceDays(now)
-  const midnight = charlottesvilleMidnight(now)
-  // yesterday's service can run past midnight
-  const serviceDays = [
-    { weekday: (today.weekday + 6) % 7, start: midnight - DAY_MS },
-    { weekday: today.weekday, start: midnight },
-    { weekday: tomorrow.weekday, start: midnight + DAY_MS },
-  ]
-
   const scheduled = new Map<string, UpcomingCall>()
-  for (const day of serviceDays) {
+  for (const day of serviceDaysAround(now)) {
     for (const s of scheduledStops) {
       if (s.days[day.weekday] === '-') continue
-      const at = day.start + gtfsMinutes(s.departure_time) * 60_000
+      // matched slots are measured from arrival times
+      const at = scheduledInstant(day.start, s.arrival_time)
       if (at < now || at > now + DAY_MS) continue
       const key = `${s.route}@${at}`
       if (scheduled.has(key)) continue
@@ -66,14 +58,15 @@ export function upcomingCalls({
   const calls: UpcomingCall[] = []
   for (const p of predictions) {
     const route = routesById.get(p.route_id)
-    const key = `${route?.short_name}@${p.scheduled_at}`
+    const scheduledAt = p.slot_at ?? p.scheduled_at
+    const key = `${route?.short_name}@${scheduledAt}`
     const match = scheduled.get(key)
     scheduled.delete(key)
     calls.push({
       key: p.id,
       route,
       headsign: match?.headsign ?? p.direction,
-      scheduledAt: p.scheduled_at,
+      scheduledAt,
       predictedAt: p.predicted_at,
       equipmentId: p.equipment_id,
       timepoint: p.timepoint,

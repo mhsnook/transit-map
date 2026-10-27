@@ -2,6 +2,8 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo, useState } from 'react'
 import { getLiveDb } from '../live/db'
 import { useNow } from '../lib/use-now'
+import { BusPanel } from './BusPanel'
+import { CloseButton } from './CloseButton'
 import { RoutePicker } from './RoutePicker'
 import { RouteSchedule } from './RouteSchedule'
 import { StopList } from './StopList'
@@ -13,12 +15,16 @@ export function InfoPanel({
   onSelectRoute,
   selectedStop,
   onSelectStop,
+  selectedBus,
+  onSelectBus,
   title,
 }: {
   selectedRoute: number | null
   onSelectRoute: (routeId: number | null) => void
   selectedStop: string | null
   onSelectStop: (stopId: string | null) => void
+  selectedBus: string | null
+  onSelectBus: (equipmentId: string | null) => void
   // the drawer passes its accessible Drawer.Title here
   title: React.ReactNode
 }) {
@@ -79,6 +85,16 @@ export function InfoPanel({
             now={now}
             onClose={() => onSelectStop(null)}
           />
+        ) : selectedBus != null ? (
+          <BusPanel
+            equipmentId={selectedBus}
+            fix={fixes.find((f) => f.equipment_id === selectedBus)}
+            routesById={routesById}
+            stopsById={stopsById}
+            now={now}
+            onSelectStop={onSelectStop}
+            onClose={() => onSelectBus(null)}
+          />
         ) : route ? (
           <>
             <div className="flex items-center gap-3 px-4 pt-3">
@@ -96,14 +112,7 @@ export function InfoPanel({
                     : `${routeFixes.length} running now`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => onSelectRoute(null)}
-                aria-label="Close route"
-                className="grid size-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100"
-              >
-                ✕
-              </button>
+              <CloseButton label="Close route" onClick={() => onSelectRoute(null)} />
             </div>
             <RouteSchedule
               route={route}
@@ -136,7 +145,12 @@ export function InfoPanel({
             </div>
             {homeTab === 'buses' ? (
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <VehicleList fixes={fixes} routesById={routesById} now={now} />
+                <VehicleList
+                  fixes={fixes}
+                  routesById={routesById}
+                  now={now}
+                  onSelectBus={onSelectBus}
+                />
               </div>
             ) : (
               <StopList stops={stops} routesByStop={routesByStop} onSelectStop={onSelectStop} />

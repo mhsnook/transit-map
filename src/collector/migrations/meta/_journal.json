@@ -43,6 +43,20 @@
       "when": 1793045810078,
       "tag": "0005_prediction_source",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793050065964,
+      "tag": "0006_matched_slots",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793070689592,
+      "tag": "0007_observed_departures",
+      "breakpoints": true
     }
   ]
 }

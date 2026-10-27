@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { scheduledCallId } from '../collector/schema'
 import type { ScheduledCallHistory } from '../collector/stop-details'
 import type { BusRoute } from '../live/collections'
 import { charlottesvilleMinutes, formatClockAt, formatMinutes } from '../lib/charlottesville-time'
@@ -25,6 +26,8 @@ const dayFormat = new Intl.DateTimeFormat('en-US', {
 
 type Observed = {
   call: ScheduledCallHistory
+  // the matched slot, or the feed vendor's scheduled time when there is none
+  scheduledAt: number
   arrivedAt: number
   // the get_vehicles prediction showing `lead` minutes before the observed arrival
   predictedAt: Map<Lead, number>
@@ -51,7 +54,7 @@ function observe(call: ScheduledCallHistory): Observed | null {
       return p.source === 'get_stop_etas' && lead >= SNAPSHOT_BAND.from && lead <= SNAPSHOT_BAND.to
     })
     .map((p) => minutesBetween(p.predicted_at, arrivedAt))
-  return { call, arrivedAt, predictedAt, snapshotErrors }
+  return { call, scheduledAt: call.slot_at ?? call.scheduled_at, arrivedAt, predictedAt, snapshotErrors }
 }
 
 function median(values: number[]): number | null {
@@ -92,7 +95,7 @@ export function StopHistory({
     )
   }
 
-  const lateness = observed.map((o) => minutesBetween(o.arrivedAt, o.call.scheduled_at))
+  const lateness = observed.map((o) => minutesBetween(o.arrivedAt, o.scheduledAt))
   const onTime = lateness.filter((m) => m >= -1 && m <= 5).length
   const medianLate = median(lateness)
   const since = calls[0].scheduled_at
@@ -197,8 +200,8 @@ function LatenessChart({ observed, routesById }: { observed: Observed[]; routesB
   const [hovered, setHovered] = useState<number | null>(null)
   const points = observed.map((o) => ({
     o,
-    x: charlottesvilleMinutes(o.call.scheduled_at),
-    y: minutesBetween(o.arrivedAt, o.call.scheduled_at),
+    x: charlottesvilleMinutes(o.scheduledAt),
+    y: minutesBetween(o.arrivedAt, o.scheduledAt),
   }))
 
   const xMin = Math.floor(Math.min(...points.map((p) => p.x)) / 120) * 120
@@ -254,7 +257,7 @@ function LatenessChart({ observed, routesById }: { observed: Observed[]; routesB
                 r={12}
                 fill="transparent"
                 tabIndex={0}
-                aria-label={`${dayFormat.format(p.o.call.scheduled_at)} ${formatClockAt(p.o.call.scheduled_at)}: ${signedMinutes(p.y)}`}
+                aria-label={`${dayFormat.format(p.o.scheduledAt)} ${formatClockAt(p.o.scheduledAt)}: ${signedMinutes(p.y)}`}
                 onPointerEnter={() => setHovered(i)}
                 onPointerLeave={() => setHovered(null)}
                 onFocus={() => setHovered(i)}
@@ -271,8 +274,8 @@ function LatenessChart({ observed, routesById }: { observed: Observed[]; routesB
           >
             <p className="font-semibold tabular-nums">{signedMinutes(active.y)}</p>
             <p className="text-gray-600">
-              {routesById.get(active.o.call.route_id)?.short_name ?? '?'} · {dayFormat.format(active.o.call.scheduled_at)}{' '}
-              · {formatClockAt(active.o.call.scheduled_at)} scheduled
+              {routesById.get(active.o.call.route_id)?.short_name ?? '?'} · {dayFormat.format(active.o.scheduledAt)}{' '}
+              · {formatClockAt(active.o.scheduledAt)} scheduled
             </p>
           </div>
         )}
@@ -327,19 +330,19 @@ function ArrivalTable({ observed, routesById }: { observed: Observed[]; routesBy
             const predicted = o.predictedAt.get(lead)
             return (
               <tr
-                key={`${o.call.schedule_number}:${o.call.pattern_stop_id}:${o.call.scheduled_at}`}
+                key={scheduledCallId(o.call)}
                 className="border-t border-gray-100"
               >
-                <td className="py-1.5 whitespace-nowrap">{dayFormat.format(o.call.scheduled_at)}</td>
+                <td className="py-1.5 whitespace-nowrap">{dayFormat.format(o.scheduledAt)}</td>
                 <td className="py-1.5">
                   <RouteChip route={routesById.get(o.call.route_id)} size="xs" />
                 </td>
-                <td className="py-1.5">{formatClockAt(o.call.scheduled_at)}</td>
+                <td className="py-1.5">{formatClockAt(o.scheduledAt)}</td>
                 <td className="py-1.5">{predicted == null ? '—' : formatClockAt(predicted)}</td>
                 <td className="py-1.5" title={o.call.arrivals.map((a) => a.rule).join(', ')}>
                   {formatClockAt(o.arrivedAt)}
                 </td>
-                <td className="py-1.5 text-right">{signedMinutes(minutesBetween(o.arrivedAt, o.call.scheduled_at))}</td>
+                <td className="py-1.5 text-right">{signedMinutes(minutesBetween(o.arrivedAt, o.scheduledAt))}</td>
               </tr>
             )
           })}

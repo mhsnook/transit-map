@@ -4,15 +4,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BusRoute, BusStop, NewestPositionFix, TimetableStop } from '../live/collections'
 import { getLiveDb } from '../live/db'
 import {
+  charlottesvilleMidnight,
   charlottesvilleMinutes,
+  formatClockAt,
   formatGtfsTime,
   gtfsMinutes,
   upcomingServiceDays,
 } from '../lib/charlottesville-time'
-import { scheduleLabel } from '../lib/schedule-label'
+import { useStopHover } from '../lib/hovered-stop'
+import { lateLabel, lateLabelAt } from '../lib/schedule-label'
+import { arrivalAt, timepointArrivals, tripOutcomes, type TripOutcome } from '../lib/trip-outcomes'
 
 type Column = { key: string; stopId: string }
-type Run = { tripId: string; cells: Map<string, TimetableStop>; first: number; last: number }
+type Run = {
+  tripId: string
+  cells: Map<string, TimetableStop>
+  // in stop order
+  stops: TimetableStop[]
+  first: number
+  last: number
+}
 type Direction = { direction: number; headsign: string; columns: Column[]; runs: Run[] }
 
 // A timepoint can come up twice in one run (a loop through the same station),
@@ -46,6 +57,7 @@ function buildDirections(rows: TimetableStop[]): Direction[] {
     dir.runs.push({
       tripId,
       cells,
+      stops,
       first: gtfsMinutes(stops[0].departure_time),
       last: gtfsMinutes(stops[stops.length - 1].arrival_time),
     })
@@ -87,14 +99,22 @@ export function RouteSchedule({
     [rows, day.weekday],
   )
   const dir = directions[Math.min(directionIndex, directions.length - 1)]
-  const liveByTrip = useMemo(
-    () => new Map(fixes.filter((f) => f.trip_id).map((f) => [f.trip_id!, f])),
-    [fixes],
+  const { data: todays } = useLiveQuery(
+    (q) => q.from({ a: live.todaysArrivals }).where(({ a }) => eq(a.route_id, route.id)),
+    [route.id],
   )
+  const arrivals = useMemo(() => timepointArrivals(todays), [todays])
+  const running = useMemo(() => new Set(fixes.map((f) => f.equipment_id)), [fixes])
 
   const isToday = dayIndex === 0
   const nowMinutes = charlottesvilleMinutes(now)
-  const anyLive = isToday && !!dir?.runs.some((r) => liveByTrip.has(r.tripId))
+  const midnight = charlottesvilleMidnight(now)
+  // trips settle on the minute, so the per-second clock needn't recompute this
+  const minute = Math.floor(now / 60_000)
+  const outcomes = useMemo(
+    () => (isToday && dir ? tripOutcomes(dir.runs, arrivals, midnight, minute * 60_000) : new Map<string, TripOutcome>()),
+    [isToday, dir, arrivals, midnight, minute],
+  )
   const nextRun = isToday ? dir?.runs.find((r) => r.first >= nowMinutes) : undefined
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -152,23 +172,19 @@ export function RouteSchedule({
             <thead className="sticky top-0 z-10 bg-white">
               <tr>
                 {dir.columns.map((c) => (
-                  <th
+                  <StopHeader
                     key={c.key}
-                    scope="col"
-                    className="border-b border-gray-200 px-2 pt-1 pb-2 text-left align-bottom text-[11px] leading-tight font-medium text-gray-600 first:pl-4"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelectStop(c.stopId)}
-                      className="text-left hover:text-gray-900 hover:underline"
-                    >
-                      {stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
-                    </button>
-                  </th>
+                    stopId={c.stopId}
+                    name={stopsById.get(c.stopId)?.name ?? `Stop ${c.stopId}`}
+                    onSelect={onSelectStop}
+                  />
                 ))}
-                {anyLive && (
-                  <th scope="col" className="border-b border-gray-200 px-2 pb-2 pr-4 text-left align-bottom text-[11px] font-medium text-gray-600">
-                    Live
+                {outcomes.size > 0 && (
+                  <th
+                    scope="col"
+                    className="sticky right-0 border-b border-l border-gray-200 bg-white px-2 pb-2 pr-4 text-left align-bottom text-[11px] font-medium text-gray-600"
+                  >
+                    How it went
                   </th>
                 )}
               </tr>
@@ -177,7 +193,7 @@ export function RouteSchedule({
               {dir.runs.map((run) => {
                 const past = isToday && run.last < nowMinutes
                 const next = run === nextRun
-                const bus = isToday ? liveByTrip.get(run.tripId) : undefined
+                const outcome = outcomes.get(run.tripId)
                 return (
                   <tr
                     key={run.tripId}
@@ -186,19 +202,34 @@ export function RouteSchedule({
                   >
                     {dir.columns.map((c) => {
                       const stop = run.cells.get(c.key)
+                      const { arrival, dueAt } = isToday && stop ? arrivalAt(arrivals, stop, midnight) : {}
                       return (
-                        <td key={c.key} className="border-b border-gray-100 px-2 py-1.5 whitespace-nowrap first:pl-4">
+                        <td
+                          key={c.key}
+                          title={
+                            arrival &&
+                            `Bus ${arrival.equipment_id} arrived ${formatClockAt(arrival.arrived_at)}, ${lateLabelAt(arrival.arrived_at, dueAt!)}`
+                          }
+                          className="border-b border-gray-100 px-2 py-1.5 whitespace-nowrap first:pl-4"
+                        >
                           {stop ? formatGtfsTime(stop.departure_time) : <span className="text-gray-300">—</span>}
                         </td>
                       )
                     })}
-                    {anyLive && (
-                      <td className="border-b border-gray-100 px-2 py-1.5 pr-4 text-xs font-normal whitespace-nowrap">
-                        {bus && (
-                          <span className="inline-flex items-center gap-1.5" title={`Bus ${bus.equipment_id}`}>
-                            <span className="size-2 animate-pulse rounded-full" style={{ background: route.color }} />
-                            {scheduleLabel(bus.on_schedule)}
-                          </span>
+                    {outcomes.size > 0 && (
+                      <td
+                        className={`sticky right-0 border-b border-l border-gray-100 px-2 py-1.5 pr-4 text-xs font-normal whitespace-nowrap ${next ? 'bg-amber-50' : 'bg-white'}`}
+                      >
+                        {outcome && (
+                          <OutcomeLabel
+                            outcome={outcome}
+                            live={
+                              outcome.kind !== 'skipped' &&
+                              running.has(outcome.equipmentId) &&
+                              (outcome.kind === 'started' || !outcome.done)
+                            }
+                            color={route.color}
+                          />
                         )}
                       </td>
                     )}
@@ -210,5 +241,30 @@ export function RouteSchedule({
         </div>
       )}
     </div>
+  )
+}
+
+function OutcomeLabel({ outcome, live, color }: { outcome: TripOutcome; live: boolean; color: string }) {
+  if (outcome.kind === 'skipped') return <span className="text-gray-700 italic">skipped</span>
+  return (
+    <span className="inline-flex items-center gap-1.5 text-gray-700" title={`Bus ${outcome.equipmentId}`}>
+      {live && <span className="size-2 animate-pulse rounded-full" style={{ background: color }} />}
+      {outcome.kind === 'started' ? (live ? 'starting' : '—') : lateLabel(outcome.minutes)}
+    </span>
+  )
+}
+
+function StopHeader({ stopId, name, onSelect }: { stopId: string; name: string; onSelect: (stopId: string) => void }) {
+  const { highlighted, ...hover } = useStopHover(stopId)
+  return (
+    <th
+      {...hover}
+      scope="col"
+      className={`border-b border-gray-200 px-2 pt-1 pb-2 text-left align-bottom text-[11px] leading-tight font-medium first:pl-4 ${highlighted ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}
+    >
+      <button type="button" onClick={() => onSelect(stopId)} className="text-left hover:text-gray-900 hover:underline">
+        {name}
+      </button>
+    </th>
   )
 }

@@ -12,6 +12,7 @@ import {
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
+  todaysArrivalCollection,
 } from './collections'
 
 let liveDb: ReturnType<typeof connect> | undefined
@@ -34,6 +35,7 @@ function connect() {
     routeStops: typed(routeStopCollection),
     timetableStops: typed(timetableStopCollection),
     currentArrivalPredictions: typed(currentArrivalPredictionCollection),
+    todaysArrivals: typed(todaysArrivalCollection),
   }
 }
 

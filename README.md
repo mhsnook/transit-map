@@ -26,8 +26,10 @@ Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Worker
 - `src/collector/predictions.ts` and `src/collector/arrivals.ts`: arrival predictions from `get_vehicles` (live) and `get_stop_etas` (a snapshot every ten minutes), and the rules that turn position fixes into observed arrivals. See [`docs/adr/0003-arrival-predictions-and-observed-arrivals.md`](docs/adr/0003-arrival-predictions-and-observed-arrivals.md).
 - `src/live/`: the party-db collections browsers sync, shared by the Collector and the client.
 - `src/components/TransitMap.tsx`: the MapLibre map (OpenFreeMap tiles) of route patterns, bus stops and transit vehicles.
-- `src/components/InfoPanel.tsx`: the side panel (desktop) or bottom sheet (phone, via vaul): bus routes, buses running now, bus stops, the selected bus route's timetable (`RouteSchedule.tsx`), and the selected bus stop (`StopPanel.tsx`, `StopHistory.tsx`).
-- `src/lib/stop-details.ts`: server functions the stop view uses to read the schedule and monitoring record from the Collector. The selected bus stop is in the URL as `?stop=`, with `&history=true` when its history is shown.
+- `src/collector/slots.ts`: matched slots, the scheduled times lateness is measured against. See [`docs/adr/0004-matched-slots.md`](docs/adr/0004-matched-slots.md).
+- `docs/findings/`: what the monitoring record has shown about the feed vendor's data.
+- `src/components/InfoPanel.tsx`: the side panel (desktop) or bottom sheet (phone, via vaul): bus routes, buses running now, bus stops, the selected bus route's timetable with how each of today's trips went (`RouteSchedule.tsx`, `lib/trip-outcomes.ts`), the selected bus stop (`StopPanel.tsx`, `StopHistory.tsx`), and the selected bus (`BusPanel.tsx`).
+- `src/lib/stop-details.ts`: server functions the stop view uses to read the schedule and monitoring record from the Collector. The selected bus stop is in the URL as `?stop=`, with `&history=true` when its history is shown; the selected bus is `?bus=`.
 - `src/routes/`: TanStack Router file routes.
 - `wrangler.jsonc`: Worker config, bindings and Durable Object migrations.
 

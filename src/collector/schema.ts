@@ -201,6 +201,10 @@ export const timetableStops = sqliteTable('timetable_stops', {
   // `${trip_id}:${stop_sequence}`
   id: text().primaryKey(),
   trip_id: text().notNull(),
+  // GTFS trip_short_name, the feed vendor's scheduleNumber, or '' for a trip
+  // without one; null on rows stored before it was kept, until the next
+  // gtfs.zip parse
+  schedule_number: text(),
   route: text().notNull(),
   days: text().notNull(),
   direction: integer().notNull(),
@@ -214,6 +218,10 @@ export const timetableStops = sqliteTable('timetable_stops', {
 // Arrival predictions and observed arrivals are made for a scheduled call:
 // one scheduled trip (schedule_number) at one pattern stop at one scheduled
 // time. The schedule number repeats every service day; scheduled_at doesn't.
+
+export function scheduledCallId(call: { schedule_number: string; pattern_stop_id: number; scheduled_at: number }) {
+  return `${call.schedule_number}:${call.pattern_stop_id}:${call.scheduled_at}`
+}
 
 const scheduledCallColumns = {
   schedule_number: text().notNull(),
@@ -237,6 +245,8 @@ export const currentArrivalPredictions = sqliteTable('current_arrival_prediction
   // the feed vendor's "Inbound" or "Outbound", not the GTFS direction_id
   direction: text(),
   timepoint: integer({ mode: 'boolean' }).notNull(),
+  // see todays_arrivals
+  slot_at: integer(),
 })
 
 export const predictionSources = ['get_vehicles', 'get_stop_etas'] as const
@@ -285,6 +295,8 @@ export const observedArrivals = sqliteTable(
     // the fix_time of the position fix that fired the rule
     arrived_at: integer().notNull(),
     distance_m: real().notNull(),
+    // see todays_arrivals
+    slot_at: integer(),
   },
   (t) => [
     primaryKey({ columns: [t.schedule_number, t.pattern_stop_id, t.scheduled_at, t.rule] }),
@@ -292,3 +304,46 @@ export const observedArrivals = sqliteTable(
     index('observed_arrivals_arrived_at').on(t.arrived_at),
   ],
 )
+
+// The first position fix after a scheduled call's observed arrival at which
+// the bus is clear of the stop (see arrivals.ts). One row per call.
+export const observedDepartures = sqliteTable(
+  'observed_departures',
+  {
+    ...scheduledCallColumns,
+    departed_at: integer().notNull(),
+    // the last fix before departed_at still at the stop: the bus left between the two
+    last_near_at: integer().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.schedule_number, t.pattern_stop_id, t.scheduled_at] }),
+    index('observed_departures_stop').on(t.stop_id, t.scheduled_at),
+    index('observed_departures_departed_at').on(t.departed_at),
+  ],
+)
+
+// Each scheduled call's observed arrival, for the stop and bus views and the
+// timetable: timepoints for 20 hours, other bus stops for 2.
+//
+// slot_at is the matched slot: the scheduled time at this bus stop, for this
+// bus route and direction, that the arrival served (see slots.ts). The feed
+// vendor keeps a transit vehicle on its block's scheduled trip, so a bus that
+// falls a whole headway behind, or swaps with another, is reported that many
+// minutes late while a bus still passes each stop near its scheduled time.
+// Lateness is measured against the matched slot. Null when the bus route is
+// unknown.
+export const todaysArrivals = sqliteTable('todays_arrivals', {
+  // scheduledCallId
+  id: text().primaryKey(),
+  schedule_number: text().notNull(),
+  equipment_id: text().notNull(),
+  route_id: integer().notNull(),
+  stop_id: text().notNull(),
+  arrived_at: integer().notNull(),
+  // null while the bus is still at the stop
+  departed_at: integer(),
+  slot_at: integer(),
+  timepoint: integer({ mode: 'boolean' }).notNull(),
+})
+
+export type TodaysArrival = typeof todaysArrivals.$inferSelect

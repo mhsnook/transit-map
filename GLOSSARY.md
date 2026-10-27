@@ -80,6 +80,14 @@ _Avoid_: diff, changeset
 One scheduled trip's stop at one pattern stop on one service day, identified by the schedule number (the feed vendor's `scheduleNumber`, GTFS `trip_short_name`), the pattern stop and the scheduled time. Arrival predictions and observed arrivals are made for a scheduled call.
 _Avoid_: visit, stop time, trip stop
 
+**Matched slot**:
+The scheduled time at a bus stop, for a bus route and direction, that an observed arrival or an arrival prediction served: the feed vendor's scheduled time, or a later one up to five minutes after the arrival. Lateness is measured against it rather than against the scheduled trip the feed vendor assigned.
+_Avoid_: slot (alone), scheduled time (for this)
+
+**Skipped trip**:
+A scheduled trip that no transit vehicle reached at any timepoint, while trips before and after it in the same direction were reached. Usually the trip a bus fell a whole headway behind on.
+_Avoid_: dropped trip, missed trip, deadhead (the feed vendor's `deadHead` means driving out of service)
+
 ### Observations
 
 **Position fix**:
@@ -93,6 +101,10 @@ _Avoid_: ETA (in code), estimate, prediction (alone)
 **Observed arrival**:
 The first position fix at which a transit vehicle is judged to have reached a bus stop for a scheduled call. Three rules judge it: within 30 m of the bus stop (`distance`), the feed vendor's `atStop` there (`at_stop`), and the feed vendor's last stop reaching it (`passed`); each is recorded.
 _Avoid_: stop event, visit, arrival (alone)
+
+**Observed departure**:
+The first position fix after an observed arrival at which the transit vehicle is clear of the bus stop: more than 50 m from it, or 30 m further than where it arrived, and no longer at that stop by the feed vendor's `atStop`.
+_Avoid_: departure (alone), leave time
 
 **Position staleness**:
 The age of a transit vehicle's newest position fix at the moment it is served or displayed.
