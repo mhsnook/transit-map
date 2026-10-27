@@ -81,7 +81,7 @@ One scheduled trip's stop at one pattern stop on one service day, identified by 
 _Avoid_: visit, stop time, trip stop
 
 **Matched slot**:
-The scheduled time at a bus stop, for a bus route and direction, that an observed arrival or an arrival prediction served: the latest one up to five minutes after it. Lateness is measured against it rather than against the scheduled trip the feed vendor assigned.
+The scheduled time at a bus stop, for a bus route and direction, that an observed arrival or an arrival prediction served: the feed vendor's scheduled time, or a later one up to five minutes after the arrival. Lateness is measured against it rather than against the scheduled trip the feed vendor assigned.
 _Avoid_: slot (alone), scheduled time (for this)
 
 **Skipped trip**:

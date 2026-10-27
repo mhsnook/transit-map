@@ -313,8 +313,8 @@ export const observedArrivals = sqliteTable(
 // vendor keeps a transit vehicle on its block's scheduled trip, so a bus that
 // falls a whole headway behind, or swaps with another, is reported that many
 // minutes late while a bus still passes each stop near its scheduled time.
-// Lateness is measured against the matched slot. Null when there is no
-// scheduled time within MAX_SLOT_DISTANCE_MS.
+// Lateness is measured against the matched slot. Null when the bus route is
+// unknown.
 export const todaysArrivals = sqliteTable('todays_arrivals', {
   // scheduledCallId
   id: text().primaryKey(),

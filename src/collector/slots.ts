@@ -1,20 +1,22 @@
 import { gtfsMinutes, serviceDaysAround } from '../lib/charlottesville-time'
 import type { ScheduledStop } from './schedule'
 
-// Further than this from any scheduled time, an arrival has no matched slot.
-export const MAX_SLOT_DISTANCE_MS = 90 * 60_000
-// The matched slot is the latest scheduled time up to this long after the
-// arrival, not the nearest: a bus 21 minutes late on a 30-minute headway is
-// nearer the next slot, but buses this early are much rarer than buses that
-// late. A bus a whole headway late, less this, moves to the next slot.
+// A later slot further than this from the arrival is never its matched slot.
+const MAX_SLOT_DISTANCE_MS = 90 * 60_000
+// A bus moves to a later slot than the feed vendor's when that slot is at
+// most this long after the arrival, not when it is merely nearer: a bus 21
+// minutes late on a 30-minute headway is nearer the next slot, but buses
+// that early are much rarer than buses that late.
 const EARLY_TOLERANCE_MS = 5 * 60_000
 
 type Slot = { days: string; minutes: number; timepoint: boolean }
 export type MatchedSlot = { slot_at: number; timepoint: boolean }
 
-// Finds matched slots (see todays_arrivals in schema.ts). Direction comes from
-// the scheduled trip the feed vendor assigned, which is right even when its
-// time is a whole headway off.
+// Finds matched slots (see todays_arrivals in schema.ts), starting from the
+// scheduled call the feed vendor assigned. Its direction is right even when
+// its time is a whole headway off. A bus only ever moves to a later slot: one
+// early for the vendor's call, like a bus waiting out a terminal layover,
+// keeps it.
 export class SlotIndex {
   #slots = new Map<string, Slot[]>()
   #directions: Map<string, number>
@@ -29,27 +31,21 @@ export class SlotIndex {
     }
   }
 
-  match(route: string, scheduleNumber: string, stopId: string, at: number): MatchedSlot | null {
-    const direction = this.#directions.get(scheduleNumber)
-    const slots = direction == null ? undefined : this.#slots.get(slotKey(route, direction, stopId))
-    if (!slots) return null
+  match(call: { route: string; scheduleNumber: string; stopId: string; scheduledAt: number }, at: number): MatchedSlot {
+    const direction = this.#directions.get(call.scheduleNumber)
+    const slots = (direction != null && this.#slots.get(slotKey(call.route, direction, call.stopId))) || []
+    let vendors: MatchedSlot = { slot_at: call.scheduledAt, timepoint: false }
     let latest: MatchedSlot | null = null
-    // only when no slot qualifies as latest: a bus more than EARLY_TOLERANCE_MS early
-    let earliest: MatchedSlot | null = null
     for (const { start, weekday } of serviceDaysAround(at)) {
       for (const slot of slots) {
         if (slot.days[weekday] === '-') continue
         const slotAt = start + slot.minutes * 60_000
-        if (Math.abs(slotAt - at) > MAX_SLOT_DISTANCE_MS) continue
-        const matched = { slot_at: slotAt, timepoint: slot.timepoint }
-        if (slotAt <= at + EARLY_TOLERANCE_MS) {
-          if (!latest || slotAt > latest.slot_at) latest = matched
-        } else if (!earliest || slotAt < earliest.slot_at) {
-          earliest = matched
-        }
+        if (slotAt === call.scheduledAt) vendors = { slot_at: slotAt, timepoint: slot.timepoint }
+        if (slotAt <= call.scheduledAt || slotAt > at + EARLY_TOLERANCE_MS || at - slotAt > MAX_SLOT_DISTANCE_MS) continue
+        if (!latest || slotAt > latest.slot_at) latest = { slot_at: slotAt, timepoint: slot.timepoint }
       }
     }
-    return latest ?? earliest
+    return latest ?? vendors
   }
 }
 

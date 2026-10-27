@@ -316,7 +316,7 @@ export class Collector extends PartyDbServer<Env> {
       this.db.select().from(schema.currentArrivalPredictions).all(),
       [...rows.values()].map((p) => ({
         ...p,
-        slot_at: match(p.route_id, p.schedule_number, p.stop_id, p.predicted_at)?.slot_at ?? null,
+        slot_at: match(p, p.predicted_at)?.slot_at ?? null,
       })),
     )
     if (batch.ops.length > 0) await this.commit([batch])
@@ -347,7 +347,7 @@ export class Collector extends PartyDbServer<Env> {
     const t = schema.todaysArrivals
     const inserts = new Map<string, schema.TodaysArrival>()
     for (const arrival of this.#arrivals.observe(fixes, stops)) {
-      const slot = match(arrival.route_id, arrival.schedule_number, arrival.stop_id, arrival.arrived_at)
+      const slot = match(arrival, arrival.arrived_at)
       this.db
         .insert(schema.observedArrivals)
         .values({ ...arrival, slot_at: slot?.slot_at ?? null })
@@ -400,9 +400,12 @@ export class Collector extends PartyDbServer<Env> {
     )
     const index = this.#slotIndex
     const shortNames = new Map(this.db.select().from(schema.busRoutes).all().map((r) => [r.id, r.short_name]))
-    return (routeId: number, scheduleNumber: string, stopId: string, at: number) => {
-      const route = shortNames.get(routeId)
-      return route == null ? null : index.match(route, scheduleNumber, stopId, at)
+    type Call = { route_id: number; schedule_number: string; stop_id: string; scheduled_at: number }
+    return (call: Call, at: number) => {
+      const route = shortNames.get(call.route_id)
+      return route == null
+        ? null
+        : index.match({ route, scheduleNumber: call.schedule_number, stopId: call.stop_id, scheduledAt: call.scheduled_at }, at)
     }
   }
 

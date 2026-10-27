@@ -97,7 +97,7 @@ export class ArrivalWatch {
   }
 }
 
-function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const rad = Math.PI / 180
   const x = (b.lng - a.lng) * rad * Math.cos(((a.lat + b.lat) / 2) * rad)
   const y = (b.lat - a.lat) * rad
