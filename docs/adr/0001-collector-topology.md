@@ -14,5 +14,5 @@ Date: 2026-10-25. Resolves [#8](https://github.com/mhsnook/transit-map/issues/8)
 
 ## Consequences
 
-- Each preview deployment gets its own Collector, which polls the feed vendor once someone opens the preview, and keeps polling for as long as the preview exists.
+- Each preview deployment gets its own Collector, which polls the feed vendor once someone opens the preview, and keeps polling for as long as the preview exists. *Superseded 2026-11-19 by [ADR 5](0005-browsers-read-the-feed-vendor.md): a preview's collector is always off.*
 - Arrival predictions, observed arrivals and terminal layovers are not recorded yet. They depend on [#7](https://github.com/mhsnook/transit-map/issues/7).
