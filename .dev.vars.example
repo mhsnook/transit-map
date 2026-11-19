@@ -1,0 +1,3 @@
+# Copy to .dev.vars. Local development reads `vars` from wrangler.jsonc, where
+# the collector may be paused; this keeps the local collector polling.
+COLLECTOR_PAUSED=false

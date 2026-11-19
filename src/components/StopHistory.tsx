@@ -89,8 +89,7 @@ export function StopHistory({
   if (calls.length === 0) {
     return (
       <p className="py-4 text-sm text-gray-500">
-        Nothing recorded at this bus stop yet. Arrival predictions and arrivals are kept for 14 days from when the
-        collector started recording them.
+        Nothing recorded at this bus stop yet.
       </p>
     )
   }

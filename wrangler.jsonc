@@ -11,6 +11,10 @@
   },
   "upload_source_maps": true,
   "triggers": { "crons": ["* * * * *"] },
+  // "true" pauses the collector: it polls nothing and writes nothing, and the
+  // map shows bus routes and bus stops without buses. Set it to "false" to
+  // resume; the Cron Trigger restarts the alarm loop within a minute.
+  "vars": { "COLLECTOR_PAUSED": "true" },
   "durable_objects": {
     "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
   },
@@ -18,6 +22,9 @@
   // Bindings are not inherited by previews; without this, env.COLLECTOR is
   // undefined in a preview and the page 1101s.
   "previews": {
+    // Vars are not inherited either. Each preview has its own Collector, which
+    // otherwise polls and writes for as long as the preview exists.
+    "vars": { "COLLECTOR_PAUSED": "true" },
     "durable_objects": {
       "bindings": [{ "name": "COLLECTOR", "class_name": "Collector" }]
     }

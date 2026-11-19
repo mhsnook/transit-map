@@ -8,14 +8,21 @@ Built with TanStack Start on Cloudflare Workers, with one Durable Object (`Colle
 
 ```bash
 pnpm install
+cp .dev.vars.example .dev.vars
 pnpm dev
 ```
+
+`.dev.vars` sets `COLLECTOR_PAUSED=false`. Without it, the local collector takes the value in `wrangler.jsonc`, and while that is `"true"` the local map shows no buses.
 
 The app runs at http://localhost:3000 inside the Workers runtime (via `@cloudflare/vite-plugin`), so Durable Objects work locally. Local Durable Object storage lives in `.wrangler/`; delete that folder to start fresh.
 
 ## Deploy
 
 Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Workers Builds.
+
+## Pause the collector
+
+Set `COLLECTOR_PAUSED` to `"true"` in `wrangler.jsonc` and deploy. The collector stops polling the feed vendor and writes nothing to storage, and the map shows bus routes and bus stops without buses. The monitoring record has a gap for as long as the pause lasts. Set it to `"false"` and deploy to resume. `previews.vars` holds the same var for previews, and `.dev.vars` overrides it for local development.
 
 ## Layout
 

@@ -18,7 +18,7 @@ Date: 2026-10-26. Part of [#7](https://github.com/mhsnook/transit-map/issues/7).
   The observed arrival is the earliest of them. With 10–15 s between position fixes, a transit vehicle that passes a bus stop without stopping is often never within 30 m of it: in the first ten minutes of recording, 35 of 105 observed arrivals fired only `passed`.
 - **Matching runs in memory in the Collector.** A scheduled call is watched from its first arrival prediction until 20 minutes after its last. Only the transit vehicle the arrival prediction names can fire it, only within 15 minutes of the predicted time, and only while it is that vehicle's earliest call at that bus stop not yet `passed`.
 - **Position fixes keep `last_stop_id` and `last_pattern_stop_id`**, so observed arrivals can be derived again from `position_fixes` under other rules.
-- **Retention.** Both tables join the hourly 14-day delete.
+- **Retention.** Both tables join the hourly 14-day delete. *Superseded 2026-11-19: the collector does not delete history. See [#19](https://github.com/mhsnook/transit-map/issues/19).*
 - **The stop view reads through RPC, not party-db.** The Collector's `stopSchedule` and `stopHistory` methods are called by TanStack Start server functions from the `/` route's loader when `?stop=` is set. The loader doesn't await them, so a bus stop opens on its live arrival predictions while the schedule and history load. History loads whether or not it is shown.
 
 ## Consequences
