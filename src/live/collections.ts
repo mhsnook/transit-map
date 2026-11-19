@@ -6,16 +6,16 @@ import { createSelectSchema } from 'drizzle-zod'
 import {
   busRoutes,
   busStops,
-  currentArrivalPredictions,
-  newestPositionFixes,
   routePatterns,
   routeStops,
   timetableStops,
   todaysArrivals,
 } from '../collector/schema'
 
-// Browsers only read; the Collector writes through commit(), which skips
-// access checks.
+// What browsers sync from the Collector: reference data, the timetable and
+// today's observed arrivals. Buses and arrival predictions come from the feed
+// vendor (see vendor.ts). Browsers only read; the Collector writes through
+// commit(), which skips access checks.
 function readOnlyCollection<T extends SQLiteTable>(
   table: T,
   key: keyof InferSelectModel<T> & string,
@@ -30,32 +30,29 @@ function readOnlyCollection<T extends SQLiteTable>(
   })
 }
 
-export const newestPositionFixCollection = readOnlyCollection(newestPositionFixes, 'equipment_id')
 export const busRouteCollection = readOnlyCollection(busRoutes, 'id')
 export const routePatternCollection = readOnlyCollection(routePatterns, 'id')
 export const busStopCollection = readOnlyCollection(busStops, 'id')
 export const routeStopCollection = readOnlyCollection(routeStops, 'id')
 export const timetableStopCollection = readOnlyCollection(timetableStops, 'id')
-export const currentArrivalPredictionCollection = readOnlyCollection(currentArrivalPredictions, 'id')
 export const todaysArrivalCollection = readOnlyCollection(todaysArrivals, 'id')
 
 export const liveCollections = [
-  newestPositionFixCollection,
   busRouteCollection,
   routePatternCollection,
   busStopCollection,
   routeStopCollection,
   timetableStopCollection,
-  currentArrivalPredictionCollection,
   todaysArrivalCollection,
 ]
 
 export const COLLECTOR_PARTY = 'collector'
 export const COLLECTOR_ROOM = 'cat'
 
-export type NewestPositionFix = InferSelectModel<typeof newestPositionFixes>
 export type BusRoute = InferSelectModel<typeof busRoutes>
 export type BusStop = InferSelectModel<typeof busStops>
 export type TimetableStop = InferSelectModel<typeof timetableStops>
-export type CurrentArrivalPrediction = InferSelectModel<typeof currentArrivalPredictions>
 export type TodaysArrival = InferSelectModel<typeof todaysArrivals>
+
+export type { CurrentArrivalPrediction } from './predictions'
+export type { NewestPositionFix } from './vehicles'

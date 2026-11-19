@@ -1,5 +1,5 @@
-import type { NewestPositionFixRow } from './feeds'
-import type { CurrentArrivalPredictionRow } from './predictions'
+import type { CurrentArrivalPredictionRow } from '../live/predictions'
+import type { NewestPositionFix } from '../live/vehicles'
 import type { arrivalRules, busStops, observedArrivals, observedDepartures } from './schema'
 
 type BusStopRow = typeof busStops.$inferSelect
@@ -54,7 +54,7 @@ export class ArrivalWatch {
   }
 
   observe(
-    fixes: NewestPositionFixRow[],
+    fixes: NewestPositionFix[],
     stopsById: Map<string, BusStopRow>,
   ): { arrivals: ObservedArrivalRow[]; departures: ObservedDepartureRow[] } {
     const byVehicle = new Map<string, Watched[]>()

@@ -1,3 +1,3 @@
-# Copy to .dev.vars. Local development reads `vars` from wrangler.jsonc, where
-# the collector may be paused; this keeps the local collector polling.
-COLLECTOR_PAUSED=false
+# Copy to .dev.vars to run the collector in local development. The map works
+# without it: browsers read buses from the feed vendor.
+COLLECTOR_ENABLED=true

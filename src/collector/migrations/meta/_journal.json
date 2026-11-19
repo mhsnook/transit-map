@@ -57,6 +57,13 @@
       "when": 1793070689592,
       "tag": "0007_observed_departures",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795069324550,
+      "tag": "0008_drop_live_bus_tables",
+      "breakpoints": true
     }
   ]
 }

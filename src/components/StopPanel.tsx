@@ -5,9 +5,10 @@ import { useEffect, useMemo } from 'react'
 import type { ScheduledStop } from '../collector/schedule'
 import type { BusRoute, BusStop } from '../live/collections'
 import { getLiveDb } from '../live/db'
+import { watchStop } from '../live/vendor'
 import { formatClockAt } from '../lib/charlottesville-time'
-import { watchStop } from '../lib/stop-details'
 import { upcomingCalls, type UpcomingCall } from '../lib/stop-upcoming'
+import { useSlotMatcher } from '../lib/use-slot-matcher'
 import { CloseButton } from './CloseButton'
 import { PredictionTime } from './PredictionTime'
 import { RouteChip } from './RouteChip'
@@ -15,8 +16,8 @@ import { StopHistory } from './StopHistory'
 
 const routeApi = getRouteApi('/')
 const UPCOMING_LIMIT = 15
-// under the collector's STOP_WATCH_MS, so the watch doesn't lapse between renewals
-const WATCH_RENEW_MS = 30_000
+// one array, so the slot matcher isn't rebuilt on every render while the schedule loads
+const NO_SCHEDULED_STOPS: ScheduledStop[] = []
 
 export function StopPanel({
   stopId,
@@ -38,12 +39,7 @@ export function StopPanel({
   const showHistory = routeApi.useSearch({ select: (s) => s.history ?? false })
   const navigate = routeApi.useNavigate()
 
-  useEffect(() => {
-    const watch = () => void watchStop({ data: { stopId } }).catch(() => {})
-    watch()
-    const id = setInterval(watch, WATCH_RENEW_MS)
-    return () => clearInterval(id)
-  }, [stopId])
+  useEffect(() => watchStop(stopId), [stopId])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -63,7 +59,7 @@ export function StopPanel({
         {schedule ? (
           <Await
             promise={schedule}
-            fallback={<Upcoming stopId={stopId} scheduledStops={[]} routesById={routesById} now={now} loading />}
+            fallback={<Upcoming stopId={stopId} scheduledStops={NO_SCHEDULED_STOPS} routesById={routesById} now={now} loading />}
           >
             {(rows) => <Upcoming stopId={stopId} scheduledStops={rows} routesById={routesById} now={now} />}
           </Await>
@@ -106,10 +102,12 @@ function Upcoming({
   loading?: boolean
 }) {
   const live = getLiveDb()
-  const { data: predictions } = useLiveQuery(
+  const { data: predictionRows } = useLiveQuery(
     (q) => q.from({ p: live.currentArrivalPredictions }).where(({ p }) => eq(p.stop_id, stopId)),
     [stopId],
   )
+  const matchSlot = useSlotMatcher(routesById, scheduledStops)
+  const predictions = useMemo(() => predictionRows.map(matchSlot), [predictionRows, matchSlot])
   const { data: timetable } = useLiveQuery((q) => q.from({ t: live.timetableStops }))
   const headsigns = useMemo(() => {
     const byDirection = new Map<string, string>()

@@ -6,14 +6,13 @@ import {
   COLLECTOR_ROOM,
   busRouteCollection,
   busStopCollection,
-  currentArrivalPredictionCollection,
   liveCollections,
-  newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
   todaysArrivalCollection,
 } from './collections'
+import { createVendorCollections } from './vendor'
 
 let liveDb: ReturnType<typeof connect> | undefined
 
@@ -28,18 +27,18 @@ function connect() {
   const typed = <T extends object>(definition: PartyCollection<T>) =>
     db[definition.name] as Collection<T, string | number>
   return {
-    newestPositionFixes: typed(newestPositionFixCollection),
+    ...createVendorCollections(),
     busRoutes: typed(busRouteCollection),
     routePatterns: typed(routePatternCollection),
     busStops: typed(busStopCollection),
     routeStops: typed(routeStopCollection),
     timetableStops: typed(timetableStopCollection),
-    currentArrivalPredictions: typed(currentArrivalPredictionCollection),
     todaysArrivals: typed(todaysArrivalCollection),
   }
 }
 
-// Browser only: opens the collector's WebSocket on first use.
+// Browser only: opens the collector's WebSocket on first use, and polls the
+// feed vendor while a view reads buses or arrival predictions.
 export function getLiveDb() {
   liveDb ??= connect()
   return liveDb

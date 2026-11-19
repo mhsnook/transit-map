@@ -1,6 +1,7 @@
 import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo, useState } from 'react'
 import { getLiveDb } from '../live/db'
+import { useVendorStatus } from '../live/vendor'
 import { useNow } from '../lib/use-now'
 import { BusPanel } from './BusPanel'
 import { CloseButton } from './CloseButton'
@@ -35,6 +36,7 @@ export function InfoPanel({
   const { data: stops } = useLiveQuery((q) => q.from({ s: live.busStops }))
   const { data: fixes } = useLiveQuery((q) => q.from({ f: live.newestPositionFixes }))
   const { data: routeStops } = useLiveQuery((q) => q.from({ rs: live.routeStops }))
+  const vendorStatus = useVendorStatus()
   const now = useNow(1000)
   const [homeTab, setHomeTab] = useState<'buses' | 'stops'>('buses')
 
@@ -64,7 +66,13 @@ export function InfoPanel({
         <div className="flex items-baseline justify-between gap-3">
           {title}
           <span className="shrink-0 text-xs text-gray-500 tabular-nums">
-            {fixes.length === 0 ? 'No buses running' : `${fixes.length} buses running`}
+            {fixes.length > 0
+              ? `${fixes.length} buses running`
+              : vendorStatus === 'loading'
+                ? 'Loading buses…'
+                : vendorStatus === 'error'
+                  ? 'Buses unavailable'
+                  : 'No buses running'}
           </span>
         </div>
         <RoutePicker
@@ -147,6 +155,7 @@ export function InfoPanel({
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <VehicleList
                   fixes={fixes}
+                  vendorStatus={vendorStatus}
                   routesById={routesById}
                   now={now}
                   onSelectBus={onSelectBus}

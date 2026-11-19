@@ -2,6 +2,7 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo } from 'react'
 import type { BusRoute, NewestPositionFix } from '../live/collections'
 import { getLiveDb } from '../live/db'
+import type { VendorStatus } from '../live/vendor'
 import { lateLabelAt, vendorScheduleLabel } from '../lib/schedule-label'
 import { RouteChip } from './RouteChip'
 
@@ -10,11 +11,13 @@ const LATEST_ARRIVAL_MS = 30 * 60_000
 
 export function VehicleList({
   fixes,
+  vendorStatus,
   routesById,
   now,
   onSelectBus,
 }: {
   fixes: NewestPositionFix[]
+  vendorStatus: VendorStatus
   routesById: Map<number, BusRoute>
   now: number
   onSelectBus: (equipmentId: string) => void
@@ -32,7 +35,15 @@ export function VehicleList({
   }, [arrivals])
 
   if (fixes.length === 0) {
-    return <p className="px-4 py-6 text-sm text-gray-500">No buses are running right now.</p>
+    return (
+      <p className="px-4 py-6 text-sm text-gray-500">
+        {vendorStatus === 'loading'
+          ? 'Loading buses…'
+          : vendorStatus === 'error'
+            ? 'The bus feed did not answer. The map tries again every 10 seconds.'
+            : 'No buses are running right now.'}
+      </p>
+    )
   }
   const sorted = [...fixes].sort(
     (a, b) => (a.route_id ?? 0) - (b.route_id ?? 0) || a.equipment_id.localeCompare(b.equipment_id),
