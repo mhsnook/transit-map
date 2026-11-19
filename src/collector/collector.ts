@@ -1,14 +1,13 @@
 import { drizzle, type DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
-import { and, desc, eq, isNull, lt, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm'
 import type { WriteBatch, WriteEvent } from 'party-db'
 import { PartyDbServer } from 'party-db/server'
+import type { Connection, ConnectionContext } from 'partyserver'
 import {
   busRouteCollection,
   busStopCollection,
-  currentArrivalPredictionCollection,
   liveCollections,
-  newestPositionFixCollection,
   routePatternCollection,
   routeStopCollection,
   timetableStopCollection,
@@ -18,15 +17,9 @@ import { ArrivalWatch } from './arrivals'
 import { syncBatch } from './diff'
 import migrations from './migrations/migrations'
 import * as schema from './schema'
-import {
-  GTFS_RT_POSITIONS_URL,
-  JSON_API_URL,
-  jsonApiHistoryRow,
-  parseGtfsRtPositions,
-  parseJsonApi,
-  type NewestPositionFixRow,
-  type PositionFixRow,
-} from './feeds'
+import { parseStopEtas, parseVehicleEtas, stopEtasUrl, type CurrentArrivalPredictionRow } from '../live/predictions'
+import { JSON_API_URL, parseJsonApi, readJson, type NewestPositionFix } from '../live/vehicles'
+import { GTFS_RT_POSITIONS_URL, jsonApiHistoryRow, parseGtfsRtPositions, type PositionFixRow } from './feeds'
 import {
   PATTERNS_URL,
   ROUTES_URL,
@@ -44,12 +37,6 @@ import {
   type PublishedSchedule,
   type ScheduledStop,
 } from './schedule'
-import {
-  parseStopEtas,
-  parseVehicleEtas,
-  stopEtasUrl,
-  type CurrentArrivalPredictionRow,
-} from './predictions'
 import { SlotIndex } from './slots'
 import { stopHistory, stopSchedule } from './stop-details'
 
@@ -61,15 +48,14 @@ const SCHEDULE_EVERY_MS = 60 * 60 * 1000
 const SCHEDULE_RETRY_MS = 10 * 60 * 1000
 const STOP_ETAS_EVERY_MS = 10 * 60 * 1000
 const STOP_ETAS_RETRY_MS = 60 * 1000
-// A browser showing a bus stop renews its watch more often than this.
-const STOP_WATCH_MS = 60 * 1000
 const TODAYS_TIMEPOINTS_MS = 20 * 60 * 60 * 1000
 const TODAYS_OTHER_STOPS_MS = 2 * 60 * 60 * 1000
 
-// COLLECTOR_PAUSED is a var in wrangler.jsonc. While it is "true" the collector
-// polls nothing and writes nothing.
-export function collectorPaused(env: Env): boolean {
-  return String(env.COLLECTOR_PAUSED) === 'true'
+// COLLECTOR_ENABLED is a var in wrangler.jsonc. Unless it is "true" the
+// collector runs no alarm loop and records nothing: the map does not need it,
+// since browsers read buses from the feed vendor.
+export function collectorEnabled(env: Env): boolean {
+  return String(env.COLLECTOR_ENABLED) === 'true'
 }
 
 type PollResult = typeof schema.pollAttempts.$inferInsert
@@ -79,10 +65,8 @@ type Polled<T> =
 
 export class Collector extends PartyDbServer<Env> {
   collections = liveCollections
-  // Five minutes of ticks, at one batch each for position fixes and arrival
-  // predictions. Each position fix batch carries every moving transit
-  // vehicle, so replaying more than this costs more than the fresh snapshot
-  // a client gets instead.
+  // A reconnecting browser replays at most this many batches; past that it
+  // gets a fresh snapshot.
   oplogRetention = 60
 
   db!: DrizzleSqliteDODatabase<typeof schema>
@@ -92,12 +76,9 @@ export class Collector extends PartyDbServer<Env> {
   #stopEtasDueAt = 0
   #gtfsStaticEtag: string | null | undefined
   #arrivals = new ArrivalWatch()
-  // null until the first get_vehicles poll after a start, so a failed poll
-  // doesn't empty current_arrival_predictions
-  #vehiclePredictions: CurrentArrivalPredictionRow[] | null = null
-  #watchedStopPredictions: CurrentArrivalPredictionRow[] = []
-  // bus stop id -> when a browser last asked to watch it
-  #watchedStops = new Map<string, number>()
+  // whether the newest get_vehicles poll served any transit vehicle
+  #busesRunning = false
+  #refreshing: Promise<void> | null = null
   // arrival prediction id -> the last get_vehicles prediction recorded for it
   #recordedPredictions = new Map<string, string>()
   // built from the schedule on first use; dropped when the schedule changes
@@ -107,50 +88,70 @@ export class Collector extends PartyDbServer<Env> {
     this.db = drizzle(this.ctx.storage, { schema })
     await migrate(this.db, migrations)
     await super.onStart()
-    await this.ensurePolling()
+    if (collectorEnabled(this.env)) {
+      await this.ensurePolling()
+    } else {
+      // Every wake starts a new instance, so the due times come from storage.
+      this.#referenceDueAt = this.#lastPolledAt('reference', ['ok']) + REFERENCE_EVERY_MS
+      this.#scheduleDueAt = this.#lastPolledAt('schedule', ['ok', 'not_modified']) + SCHEDULE_EVERY_MS
+    }
   }
 
   async ensurePolling() {
-    if (collectorPaused(this.env)) return
+    if (!collectorEnabled(this.env)) return
     if ((await this.ctx.storage.getAlarm()) === null) {
       await this.ctx.storage.setAlarm(Date.now())
     }
   }
 
+  // Without the alarm loop, a browser that connects is what keeps bus routes,
+  // bus stops and the timetable current. The connect does not wait for it.
+  onConnect(connection: Connection, ctx: ConnectionContext) {
+    if (!collectorEnabled(this.env)) void this.#refreshReferenceAndSchedule()
+    return super.onConnect(connection, ctx)
+  }
+
+  #refreshReferenceAndSchedule(): Promise<void> {
+    this.#refreshing ??= Promise.all([this.#refreshReferenceIfDue(), this.#checkScheduleIfDue()])
+      .then(
+        () => {},
+        (error) => console.error('collector reference refresh failed', error),
+      )
+      .finally(() => {
+        this.#refreshing = null
+      })
+    return this.#refreshing
+  }
+
+  // 0 when this source has never been polled with one of these outcomes.
+  #lastPolledAt(source: schema.PollSource, outcomes: PollResult['outcome'][]): number {
+    const t = schema.pollAttempts
+    const row = this.db
+      .select({ at: t.started_at })
+      .from(t)
+      .where(and(eq(t.source, source), inArray(t.outcome, outcomes)))
+      .orderBy(desc(t.started_at))
+      .limit(1)
+      .get()
+    return row?.at ?? 0
+  }
+
   async onAlarm() {
-    // A paused collector sets no next alarm, so this is its last tick.
-    if (collectorPaused(this.env)) {
-      await this.#clearLiveBuses()
-      return
-    }
+    // A collector that was turned off sets no next alarm, so this is its last tick.
+    if (!collectorEnabled(this.env)) return
     // Schedule the next tick before doing any work, so a failure below can't
     // stop the loop.
     await this.ctx.storage.setAlarm(Date.now() + TICK_MS)
     try {
       await Promise.all([
         this.#pollJsonApi(),
-        this.#pollWatchedStops(),
         this.#pollGtfsRt(),
         this.#snapshotStopEtasIfDue(),
         this.#refreshReferenceIfDue(),
         this.#checkScheduleIfDue(),
       ])
-      await this.#syncPredictions()
     } catch (error) {
       console.error('collector tick failed', error)
-    }
-  }
-
-  // Without this a paused map keeps each bus where the last poll left it.
-  async #clearLiveBuses() {
-    try {
-      const batches = [
-        syncBatch(newestPositionFixCollection, this.db.select().from(schema.newestPositionFixes).all(), []),
-        syncBatch(currentArrivalPredictionCollection, this.db.select().from(schema.currentArrivalPredictions).all(), []),
-      ].filter((batch) => batch.ops.length > 0)
-      if (batches.length > 0) await this.commit(batches)
-    } catch (error) {
-      console.error('collector pause failed to clear live buses', error)
     }
   }
 
@@ -171,37 +172,9 @@ export class Collector extends PartyDbServer<Env> {
     // a scheduled call has to be watched before a fix can arrive at it
     this.#arrivals.predicted(predictions, Date.now())
     this.#recordVehiclePredictions(predictions)
-    this.#vehiclePredictions = predictions
-    const batches = [this.#newestFixesBatch(fixes), this.#todaysArrivalsBatch(fixes)]
-    const changed = batches.filter((b) => b.ops.length > 0)
-    if (changed.length > 0) await this.commit(changed)
-  }
-
-  // get_vehicles only predicts each transit vehicle's next five bus stops,
-  // a few minutes out; a bus stop someone has open gets the feed vendor's
-  // full list for it, as the vendor site does.
-  async #pollWatchedStops() {
-    const now = Date.now()
-    for (const [stopId, at] of this.#watchedStops) {
-      if (now - at > STOP_WATCH_MS) this.#watchedStops.delete(stopId)
-    }
-    if (this.#watchedStops.size === 0) {
-      this.#watchedStopPredictions = []
-      return
-    }
-    const polled = await this.#poll(
-      'watched_stop_etas',
-      stopEtasUrl([...this.#watchedStops.keys()]),
-      {},
-      async (response) => parseStopEtas(await readJson(response), Date.now()),
-    )
-    this.#watchedStopPredictions = polled.ok ? polled.value : []
-  }
-
-  // RPC: a browser showing this bus stop calls it at least once a minute.
-  watchStop(stopId: string) {
-    const known = this.db.select({ id: schema.busStops.id }).from(schema.busStops).where(eq(schema.busStops.id, stopId)).get()
-    if (known) this.#watchedStops.set(stopId, Date.now())
+    this.#busesRunning = fixes.length > 0
+    const batch = this.#todaysArrivalsBatch(fixes)
+    if (batch.ops.length > 0) await this.commit([batch])
   }
 
   async #pollGtfsRt() {
@@ -222,9 +195,8 @@ export class Collector extends PartyDbServer<Env> {
   async #snapshotStopEtasIfDue() {
     const now = Date.now()
     if (now < this.#stopEtasDueAt) return
-    const running = this.db.select({ id: schema.newestPositionFixes.equipment_id }).from(schema.newestPositionFixes).limit(1).get()
     const stopIds = this.db.select({ id: schema.busStops.id }).from(schema.busStops).all()
-    if (!running || stopIds.length === 0) return
+    if (!this.#busesRunning || stopIds.length === 0) return
     const polled = await this.#poll(
       'stop_etas',
       stopEtasUrl(stopIds.map((s) => s.id)),
@@ -315,37 +287,8 @@ export class Collector extends PartyDbServer<Env> {
     return { fixes_seen: rows.length, fixes_new: inserted }
   }
 
-  // Transit vehicles that leave the feed are deleted; a fix is only written
-  // when it is newer than the one held.
-  #newestFixesBatch(fixes: NewestPositionFixRow[]) {
-    return syncBatch(
-      newestPositionFixCollection,
-      this.db.select().from(schema.newestPositionFixes).all(),
-      fixes,
-      (prev, fix) => fix.fix_time > prev.fix_time,
-    )
-  }
-
-  // Where both sources predict a scheduled call, get_vehicles wins.
-  async #syncPredictions() {
-    if (!this.#vehiclePredictions) return
-    const rows = new Map(this.#watchedStopPredictions.map((p) => [p.id, p]))
-    for (const p of this.#vehiclePredictions) rows.set(p.id, p)
-    const match = this.#slotMatcher()
-    const batch = syncBatch(
-      currentArrivalPredictionCollection,
-      this.db.select().from(schema.currentArrivalPredictions).all(),
-      [...rows.values()].map((p) => ({
-        ...p,
-        slot_at: match(p, p.predicted_at)?.slot_at ?? null,
-      })),
-    )
-    if (batch.ops.length > 0) await this.commit([batch])
-  }
-
   // Each get_vehicles arrival prediction is recorded when first served and
-  // when it changes. Watched bus stops are not recorded: they are sampled
-  // only while someone looks.
+  // when it changes.
   #recordVehiclePredictions(predictions: CurrentArrivalPredictionRow[]) {
     const madeAt = Date.now()
     const seen = new Set<string>()
@@ -363,7 +306,7 @@ export class Collector extends PartyDbServer<Env> {
   // scheduled call, which is the earliest, also goes to todays_arrivals.
   // Departures go to observed_departures and fill in todays_arrivals, and
   // todays_arrivals rows past their window are deleted in the same batch.
-  #todaysArrivalsBatch(fixes: NewestPositionFixRow[]): WriteBatch<schema.TodaysArrival> {
+  #todaysArrivalsBatch(fixes: NewestPositionFix[]): WriteBatch<schema.TodaysArrival> {
     const stops = new Map(this.db.select().from(schema.busStops).all().map((s) => [s.id, s]))
     const match = this.#slotMatcher()
     const t = schema.todaysArrivals
@@ -591,11 +534,4 @@ export class Collector extends PartyDbServer<Env> {
     }
   }
 
-}
-
-// unknown JSON API services answer 200 with an HTML error page
-async function readJson(response: Response): Promise<unknown> {
-  const contentType = response.headers.get('content-type') ?? ''
-  if (!contentType.includes('json')) throw new Error(`content-type ${contentType}`)
-  return response.json()
 }

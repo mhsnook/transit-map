@@ -7,6 +7,7 @@ import m0004 from './0004_arrival_predictions.sql';
 import m0005 from './0005_prediction_source.sql';
 import m0006 from './0006_matched_slots.sql';
 import m0007 from './0007_observed_departures.sql';
+import m0008 from './0008_drop_live_bus_tables.sql';
 
   export default {
     journal,
@@ -18,7 +19,8 @@ m0003,
 m0004,
 m0005,
 m0006,
-m0007
+m0007,
+m0008
     }
   }
   

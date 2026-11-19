@@ -12,29 +12,6 @@ export type Source = (typeof sources)[number]
 
 // Times are ms since the epoch throughout.
 
-export const newestPositionFixes = sqliteTable('newest_position_fixes', {
-  equipment_id: text().primaryKey(),
-  fix_time: integer().notNull(),
-  received_at: integer().notNull(),
-  lat: real().notNull(),
-  lng: real().notNull(),
-  heading: real(),
-  route_id: integer(),
-  pattern_id: integer(),
-  trip_id: text(),
-  schedule_number: text(),
-  next_stop_id: text(),
-  last_stop_id: text(),
-  last_pattern_stop_id: integer(),
-  // at last_stop_id, not next_stop_id
-  at_stop: integer({ mode: 'boolean' }).notNull(),
-  // minutes; negative is late
-  on_schedule: integer(),
-  // passengers aboard and seats, as the feed vendor reports them
-  load: integer(),
-  capacity: integer(),
-})
-
 export const positionFixes = sqliteTable(
   'position_fixes',
   {
@@ -233,21 +210,6 @@ const scheduledCallColumns = {
   route_id: integer().notNull(),
   equipment_id: text().notNull(),
 }
-
-// The arrival predictions get_vehicles serves now, for each transit
-// vehicle's next five bus stops, plus get_stop_etas for the bus stops
-// browsers have open.
-export const currentArrivalPredictions = sqliteTable('current_arrival_predictions', {
-  // `${schedule_number}:${pattern_stop_id}`
-  id: text().primaryKey(),
-  ...scheduledCallColumns,
-  predicted_at: integer().notNull(),
-  // the feed vendor's "Inbound" or "Outbound", not the GTFS direction_id
-  direction: text(),
-  timepoint: integer({ mode: 'boolean' }).notNull(),
-  // see todays_arrivals
-  slot_at: integer(),
-})
 
 export const predictionSources = ['get_vehicles', 'get_stop_etas'] as const
 

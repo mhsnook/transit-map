@@ -6,6 +6,7 @@ import { getLiveDb } from '../live/db'
 import { formatClockAt, formatGtfsTime, gtfsMinutes } from '../lib/charlottesville-time'
 import { useStopHover } from '../lib/hovered-stop'
 import { lateLabelAt, vendorScheduleLabel } from '../lib/schedule-label'
+import { useSlotMatcher } from '../lib/use-slot-matcher'
 import { CloseButton } from './CloseButton'
 import { PredictionTime } from './PredictionTime'
 import { RouteChip } from './RouteChip'
@@ -33,10 +34,12 @@ export function BusPanel({
   onClose: () => void
 }) {
   const live = getLiveDb()
-  const { data: predictions } = useLiveQuery(
+  const { data: predictionRows } = useLiveQuery(
     (q) => q.from({ p: live.currentArrivalPredictions }).where(({ p }) => eq(p.equipment_id, equipmentId)),
     [equipmentId],
   )
+  const matchSlot = useSlotMatcher(routesById)
+  const predictions = predictionRows.map(matchSlot)
   const { data: arrivals } = useLiveQuery(
     (q) => q.from({ a: live.todaysArrivals }).where(({ a }) => eq(a.equipment_id, equipmentId)),
     [equipmentId],

@@ -1,10 +1,27 @@
 import { z } from 'zod'
 import { charlottesvilleClockNear, clockMinutes } from '../lib/charlottesville-time'
-import { JSON_API_BASE } from './feeds'
-import type { currentArrivalPredictions } from './schema'
+import { JSON_API_BASE } from './vehicles'
 
-// The collector adds the matched slot when it syncs these to the live collection.
-export type CurrentArrivalPredictionRow = Omit<typeof currentArrivalPredictions.$inferSelect, 'slot_at'>
+// An arrival prediction the feed vendor serves now, for a scheduled call (see
+// scheduledCallColumns in the collector's schema).
+export type CurrentArrivalPredictionRow = {
+  // `${schedule_number}:${pattern_stop_id}`
+  id: string
+  schedule_number: string
+  pattern_stop_id: number
+  scheduled_at: number
+  stop_id: string
+  route_id: number
+  equipment_id: string
+  predicted_at: number
+  // the feed vendor's "Inbound" or "Outbound", not the GTFS direction_id
+  direction: string | null
+  timepoint: boolean
+}
+
+// With the matched slot (see todays_arrivals in the collector's schema), or
+// null when the bus route is not known yet.
+export type CurrentArrivalPrediction = CurrentArrivalPredictionRow & { slot_at: number | null }
 
 // One request covers every bus stop. Without noLimit the feed vendor caps
 // each bus stop at five, which at a hub reaches only about ten minutes out.

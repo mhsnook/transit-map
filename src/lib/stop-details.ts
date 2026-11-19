@@ -26,11 +26,3 @@ export const getStopHistory = createServerFn({ method: 'GET' })
     const calls: ScheduledCallHistory[] = await (await collector()).stopHistory(data.stopId)
     return calls
   })
-
-// Asks the collector to fetch this bus stop's arrival predictions every tick
-// for the next minute.
-export const watchStop = createServerFn({ method: 'POST' })
-  .validator(stopInput)
-  .handler(async ({ data }) => {
-    await (await collector()).watchStop(data.stopId)
-  })

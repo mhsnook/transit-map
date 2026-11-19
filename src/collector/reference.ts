@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { JSON_API_BASE } from './feeds'
+import { JSON_API_BASE } from '../live/vehicles'
 import type { busRoutes, busStops, routePatterns, routeStops } from './schema'
 
 export const PATTERNS_URL = `${JSON_API_BASE}get_patterns`
