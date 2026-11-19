@@ -55,8 +55,6 @@ import { stopHistory, stopSchedule } from './stop-details'
 
 const TICK_MS = 10_000
 const FETCH_TIMEOUT_MS = 5_000
-const RETENTION_MS = 14 * 24 * 60 * 60 * 1000
-const PRUNE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_EVERY_MS = 60 * 60 * 1000
 const REFERENCE_RETRY_MS = 60 * 1000
 const SCHEDULE_EVERY_MS = 60 * 60 * 1000
@@ -89,7 +87,6 @@ export class Collector extends PartyDbServer<Env> {
 
   db!: DrizzleSqliteDODatabase<typeof schema>
   #gtfsRtEtag: string | null = null
-  #lastPrunedAt = 0
   #referenceDueAt = 0
   #scheduleDueAt = 0
   #stopEtasDueAt = 0
@@ -139,7 +136,6 @@ export class Collector extends PartyDbServer<Env> {
         this.#checkScheduleIfDue(),
       ])
       await this.#syncPredictions()
-      this.#pruneIfDue()
     } catch (error) {
       console.error('collector tick failed', error)
     }
@@ -595,17 +591,6 @@ export class Collector extends PartyDbServer<Env> {
     }
   }
 
-  #pruneIfDue() {
-    const now = Date.now()
-    if (now - this.#lastPrunedAt < PRUNE_EVERY_MS) return
-    this.#lastPrunedAt = now
-    const cutoff = now - RETENTION_MS
-    this.db.delete(schema.positionFixes).where(lt(schema.positionFixes.fix_time, cutoff)).run()
-    this.db.delete(schema.pollAttempts).where(lt(schema.pollAttempts.started_at, cutoff)).run()
-    this.db.delete(schema.arrivalPredictions).where(lt(schema.arrivalPredictions.made_at, cutoff)).run()
-    this.db.delete(schema.observedArrivals).where(lt(schema.observedArrivals.arrived_at, cutoff)).run()
-    this.db.delete(schema.observedDepartures).where(lt(schema.observedDepartures.departed_at, cutoff)).run()
-  }
 }
 
 // unknown JSON API services answer 200 with an HTML error page

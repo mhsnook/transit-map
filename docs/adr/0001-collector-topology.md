@@ -10,7 +10,7 @@ Date: 2026-10-25. Resolves [#8](https://github.com/mhsnook/transit-map/issues/8)
 - **Deduplication** is the primary key `(fix_time, source, equipment_id)` with `ON CONFLICT DO NOTHING`. A position fix served on several polls is stored once.
 - **Browsers subscribe over party-db** (0.0.6) on the Collector's hibernatable WebSocket, into TanStack DB collections. Only `newest_position_fixes` (one row per transit vehicle, from the JSON API) is declared as a collection. The monitoring record tables are owned by Drizzle and are never sent to browsers. Browsers cannot write: the collection's access is `{ read: 'public' }`, and the Collector writes through the privileged `commit()`.
 - **Failure behavior.** Each fetch times out after 5 s. Every poll attempt is recorded with its outcome (`ok`, `not_modified`, `http_error`, `timeout`, `network_error`, `parse_error`), so feed vendor outages are visible in the monitoring record. A failed JSON API poll leaves `newest_position_fixes` untouched, and position staleness keeps growing on the map. A successful poll that omits a transit vehicle removes it from the collection.
-- **Retention.** Once an hour, the tick deletes position fixes and poll attempts older than 14 days.
+- **Retention.** Once an hour, the tick deletes position fixes and poll attempts older than 14 days. *Superseded 2026-11-19: the collector does not delete history. See [#19](https://github.com/mhsnook/transit-map/issues/19).*
 
 ## Consequences
 
