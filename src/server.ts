@@ -2,6 +2,8 @@ import handler from '@tanstack/react-start/server-entry'
 import { getServerByName, routePartykitRequest } from 'partyserver'
 import { COLLECTOR_ROOM } from './live/collections'
 
+import { collectorPaused } from './collector/collector'
+
 export { Collector } from './collector/collector'
 
 export default {
@@ -10,6 +12,7 @@ export default {
   },
   // A watchdog: restarts the collector's alarm loop if it ever stops.
   async scheduled(_controller: ScheduledController, env: Env) {
+    if (collectorPaused(env)) return
     const collector = await getServerByName(env.COLLECTOR, COLLECTOR_ROOM)
     await collector.ensurePolling()
   },

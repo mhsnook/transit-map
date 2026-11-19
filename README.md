@@ -17,6 +17,10 @@ The app runs at http://localhost:3000 inside the Workers runtime (via `@cloudfla
 
 Pushes to `main` deploy to https://transit-map.msnook-xyz.workers.dev via Workers Builds.
 
+## Pause the collector
+
+Set `COLLECTOR_PAUSED` to `"true"` in `wrangler.jsonc` and deploy. The collector stops polling the feed vendor and writes nothing to storage, and the map shows bus routes and bus stops without buses. The monitoring record has a gap for as long as the pause lasts. Set it to `"false"` and deploy to resume. `previews.vars` holds the same var for previews; for local development, override it in `.dev.vars`.
+
 ## Layout
 
 - `src/server.ts`: the Worker entry. It wraps TanStack Start's handler and exports the Durable Object classes, which Cloudflare requires to be exported from the main module.
